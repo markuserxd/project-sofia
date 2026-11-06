@@ -1,0 +1,1 @@
+"""SOFIA desktop assistant package."""
