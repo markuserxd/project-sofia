@@ -12,7 +12,9 @@ def test_defaults_ignore_unrelated_environment_values() -> None:
 
 @pytest.mark.parametrize("level", ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
 def test_valid_environment_values(level: str) -> None:
-    settings = load_settings({"SOFIA_LOG_LEVEL": f" {level.lower()} ", "SOFIA_PROVIDER": " MOCK "})
+    settings = load_settings(
+        {"SOFIA_LOG_LEVEL": f" {level.lower()} ", "SOFIA_PROVIDER": " MOCK "}
+    )
     assert (settings.log_level, settings.provider) == (level, "mock")
 
 
@@ -20,10 +22,15 @@ def test_valid_environment_values(level: str) -> None:
     ("name", "value", "hint"),
     [
         (
-            "SOFIA_LOG_LEVEL", "test-private-value",
+            "SOFIA_LOG_LEVEL",
+            "test-private-value",
             "Expected one of DEBUG, INFO, WARNING, ERROR, CRITICAL.",
         ),
-        ("SOFIA_LOG_LEVEL", "", "Expected one of DEBUG, INFO, WARNING, ERROR, CRITICAL."),
+        (
+            "SOFIA_LOG_LEVEL",
+            "",
+            "Expected one of DEBUG, INFO, WARNING, ERROR, CRITICAL.",
+        ),
         ("SOFIA_PROVIDER", "test-private-value", "Set it to mock."),
         ("SOFIA_PROVIDER", "openai", "Set it to mock."),
     ],

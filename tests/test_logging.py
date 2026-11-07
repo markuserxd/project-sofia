@@ -31,7 +31,9 @@ def log_output() -> Iterator[StringIO]:
         logger.propagate = original_propagate
 
 
-def test_json_lines_with_utc_timestamp_and_level_filtering(log_output: StringIO) -> None:
+def test_json_lines_with_utc_timestamp_and_level_filtering(
+    log_output: StringIO,
+) -> None:
     logger = logging.getLogger("sofia.core")
     logger.debug("Hidden")
     logger.info("Started %d task\nready", 1)
@@ -40,10 +42,16 @@ def test_json_lines_with_utc_timestamp_and_level_filtering(log_output: StringIO)
     timestamp = record.pop("timestamp")
     assert timestamp.endswith("Z")
     assert datetime.fromisoformat(timestamp).utcoffset() == timedelta(0)
-    assert record == {"level": "INFO", "logger": "sofia.core", "message": "Started 1 task\nready"}
+    assert record == {
+        "level": "INFO",
+        "logger": "sofia.core",
+        "message": "Started 1 task\nready",
+    }
 
 
-def test_reinitialization_changes_level_and_stream_without_duplicates(log_output: StringIO) -> None:
+def test_reinitialization_changes_level_and_stream_without_duplicates(
+    log_output: StringIO,
+) -> None:
     output = StringIO()
     configure_logging(Settings(log_level="DEBUG"), output)
     configure_logging(Settings(log_level="DEBUG"), output)
@@ -99,7 +107,9 @@ def test_redacts_sensitive_fields_and_omits_raw_payloads(log_output: StringIO) -
             "config": Settings(),
             "metadata": {
                 "environment": {"PRIVATE_PATH": private, "OPENAI_API_KEY": private},
-                "upstream": [{"clientSecret": private, "refresh-token": private, "raw": private}],
+                "upstream": [
+                    {"clientSecret": private, "refresh-token": private, "raw": private}
+                ],
                 "password": {"nested": private},
             },
         },
@@ -126,7 +136,9 @@ def test_malformed_records_do_not_expose_objects_or_exception_details(
     # Pytest also attaches its own formatters to non-propagating loggers.
     sofia_logger = logging.getLogger("sofia")
     sofia_handlers = [
-        handler for handler in sofia_logger.handlers if getattr(handler, "stream", None) is log_output
+        handler
+        for handler in sofia_logger.handlers
+        if getattr(handler, "stream", None) is log_output
     ]
     monkeypatch.setattr(sofia_logger, "handlers", sofia_handlers)
     logger = logging.getLogger("sofia.core")

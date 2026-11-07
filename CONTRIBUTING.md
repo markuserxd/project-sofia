@@ -1,7 +1,15 @@
 # Contributing to SOFIA
 
 Follow the Windows setup in [README.md](README.md), install the `dev` extra,
-and run the pytest suite before opening a pull request.
+and run the quality checks before opening a pull request:
+
+```powershell
+python -m pip install -e '.[dev]'
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy src/sofia
+python -m pytest -v
+```
 
 - Keep changes focused on one issue and link it in the pull request.
 - Use clear names and type hints where they clarify an interface. Prefer the
