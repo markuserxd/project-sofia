@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python-version: "3.13"
+          - os: windows-latest
+            python-version: "3.11"
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93c04b328b9f0de17d543c0e # v5.4.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package and development tools
+        run: python -m pip install -e ".[dev]"
+
+      - name: Check lint
+        run: python -m ruff check .
+
+      - name: Check formatting
+        run: python -m ruff format --check .
+
+      - name: Check types
+        run: python -m mypy src/sofia
+
+      - name: Run tests
+        run: python -m pytest -v
+
+      - name: Check CLI
+        run: |
+          python -c "import sofia"
+          python -m sofia --help
+          python -m sofia --version
+          python -m sofia

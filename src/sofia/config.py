@@ -17,12 +17,16 @@ class Settings:
     provider: str = "mock"
 
     def __post_init__(self) -> None:
-        level = self.log_level.strip().upper() if isinstance(self.log_level, str) else None
+        level = (
+            self.log_level.strip().upper() if isinstance(self.log_level, str) else None
+        )
         if level not in _LOG_LEVELS:
             raise ConfigurationError(
                 f"Invalid SOFIA_LOG_LEVEL. Expected one of {', '.join(_LOG_LEVELS)}."
             )
-        provider = self.provider.strip().lower() if isinstance(self.provider, str) else None
+        provider = (
+            self.provider.strip().lower() if isinstance(self.provider, str) else None
+        )
         if provider != "mock":
             raise ConfigurationError("Invalid SOFIA_PROVIDER. Set it to mock.")
         object.__setattr__(self, "log_level", level)

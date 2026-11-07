@@ -64,6 +64,9 @@ external payloads out of log calls.
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e '.[dev]'
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m ruff format --check .
+.\.venv\Scripts\python.exe -m mypy src/sofia
 .\.venv\Scripts\python.exe -m pytest
 ```
 

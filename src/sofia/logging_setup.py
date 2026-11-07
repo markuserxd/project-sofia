@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime
 from threading import Lock
-from typing import TextIO
+from typing import TextIO, cast
 
 from sofia.config import Settings
 
@@ -17,7 +17,16 @@ _TASK_ID: ContextVar[str | None] = ContextVar("sofia_task_id", default=None)
 _TASK_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
 _SETUP_LOCK = Lock()
 _SENSITIVE_PARTS = frozenset(
-    {"apikey", "password", "passwd", "secret", "authorization", "token", "credential", "cookie"},
+    {
+        "apikey",
+        "password",
+        "passwd",
+        "secret",
+        "authorization",
+        "token",
+        "credential",
+        "cookie",
+    },
 )
 
 
@@ -61,7 +70,8 @@ def _redacted_fields(value: object, depth: int = 0) -> object:
                 result[name] = child
         return result or None
     if type(value) in (list, tuple):
-        items = [_redacted_fields(item, depth + 1) for item in value]
+        containers = cast(list[object] | tuple[object, ...], value)
+        items = [_redacted_fields(item, depth + 1) for item in containers]
         return items if any(item is not None for item in items) else None
     return None
 
@@ -82,7 +92,9 @@ def _message(record: logging.LogRecord) -> str:
 
 class _JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
-        timestamp = datetime.fromtimestamp(record.created, UTC).isoformat(timespec="milliseconds")
+        timestamp = datetime.fromtimestamp(record.created, UTC).isoformat(
+            timespec="milliseconds"
+        )
         payload: dict[str, object] = {
             "timestamp": timestamp.replace("+00:00", "Z"),
             "level": record.levelname,

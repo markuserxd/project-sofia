@@ -46,7 +46,12 @@ def test_cli_rejects_unknown_option() -> None:
 
 
 def test_default_startup_without_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
-    for name in ("SOFIA_LOG_LEVEL", "SOFIA_PROVIDER", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"):
+    for name in (
+        "SOFIA_LOG_LEVEL",
+        "SOFIA_PROVIDER",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+    ):
         monkeypatch.delenv(name, raising=False)
     result = run_cli()
     assert result.returncode == 0
