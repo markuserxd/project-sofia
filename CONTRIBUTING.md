@@ -1,15 +1,18 @@
 # Contributing to SOFIA
 
-Follow the Windows setup in [README.md](README.md), install the `dev` extra,
+Follow the Windows setup in [README.md](README.md), install the `dev` and `openai` extras,
 and run the quality checks before opening a pull request:
 
 ```powershell
-python -m pip install -e '.[dev]'
+python -m pip install -e '.[dev,openai]'
 python -m ruff check .
 python -m ruff format --check .
 python -m mypy src/sofia
 python -m pytest -v
 ```
+
+The OpenAI SDK is required for the offline mocked integration tests. No real API
+key or paid request is needed; the default package and CLI remain SDK-independent.
 
 - Keep changes focused on one issue and link it in the pull request.
 - Use clear names and type hints where they clarify an interface. Prefer the
