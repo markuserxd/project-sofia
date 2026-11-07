@@ -102,7 +102,9 @@ one chunk before raising. If fewer chunks exist than requested, the failure is
 raised after the available chunks, even for an empty response. Consumers must
 handle errors through the end of iteration; a partial stream is not a success.
 With `failure=None` (the default), `stream_fail_after` has no effect.
-There are no retries, fallback routing, or real provider integrations yet.
+The mock has no retries or fallback routing. An optional, explicitly authorized
+[OpenAI text provider](docs/openai-provider.md) supports generation and streaming
+with per-run permission checks, token/cost accounting, and bounded network options.
 
 ## Security guardrails
 
@@ -115,7 +117,7 @@ for trusted-controller boundaries, exact USD accounting, and adapter obligations
 ## Develop and test
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -e '.[dev]'
+.\.venv\Scripts\python.exe -m pip install -e '.[dev,openai]'
 .\.venv\Scripts\python.exe -m ruff check .
 .\.venv\Scripts\python.exe -m ruff format --check .
 .\.venv\Scripts\python.exe -m mypy src/sofia
