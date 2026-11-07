@@ -60,6 +60,50 @@ format arguments, and task IDs can contain secrets that redaction cannot
 reliably detect. Keep credentials, raw environment data, user content, and
 external payloads out of log calls.
 
+## Offline LLM provider
+
+The provider API uses frozen dataclasses and a structural `LLMProvider` protocol:
+`generate(request)` returns an `LLMResponse`; `stream(request)` returns an iterator
+of `LLMStreamChunk` objects. Both response types carry text in `content`.
+Messages accept exactly `system`, `user`, or `assistant` roles and string content
+(including empty text). Requests require a non-empty tuple of `LLMMessage` objects
+so the conversation remains immutable. Invalid input raises `InvalidRequestError`.
+
+```python
+from sofia.providers import LLMMessage, LLMProvider, LLMRequest, MockLLMProvider
+
+provider: LLMProvider = MockLLMProvider(response_text="Hello from SOFIA", chunk_size=6)
+request = LLMRequest(
+    messages=(
+        LLMMessage(role="system", content="Be helpful."),
+        LLMMessage(role="user", content="Hello"),
+    )
+)
+assert provider.generate(request).content == "Hello from SOFIA"
+assert (
+    "".join(chunk.content for chunk in provider.stream(request)) == "Hello from SOFIA"
+)
+```
+
+The mock returns its configured text for every valid conversation. Its default
+response is `Hello from SOFIA`. Streaming splits text into fixed-size character
+chunks (default: 6), preserving whitespace and Unicode exactly. Empty responses
+produce no chunks. Calls and iterators have independent progress and no delays.
+No environment variables, credentials, network services, or extra dependencies
+are needed. Providers do not log prompts or generated text.
+
+For deterministic error tests, set `failure="general"`, `"temporary"`, or
+`"invalid_request"`. These raise `ProviderError`, `TemporaryProviderError`, or
+`InvalidRequestError`, respectively; the latter two inherit from `ProviderError`.
+Messages are fixed and contain no request, response, or environment data.
+`generate()` always raises when a failure is configured. `stream()` raises on
+iteration, before the first chunk by default. Set `stream_fail_after=1` to emit
+one chunk before raising. If fewer chunks exist than requested, the failure is
+raised after the available chunks, even for an empty response. Consumers must
+handle errors through the end of iteration; a partial stream is not a success.
+With `failure=None` (the default), `stream_fail_after` has no effect.
+There are no retries, fallback routing, or real provider integrations yet.
+
 ## Develop and test
 
 ```powershell
