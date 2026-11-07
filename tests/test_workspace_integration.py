@@ -20,12 +20,14 @@ from sofia.security import Action, PermissionDenied
 from sofia.tools import WorkspaceConfig, WorkspaceFiles
 
 
-def test_offline_example(tmp_path, capsys):
+def test_offline_example(capsys):
     path = Path(__file__).resolve().parents[1] / "examples" / "workspace_files.py"
     spec = importlib.util.spec_from_file_location("workspace_demo", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    module.demonstration(tmp_path)
+    # Exercise native temporary-root selection and cleanup, including Windows
+    # runner TEMP values using an 8.3 alias, instead of only an already-resolved root.
+    module.main()
     assert "unsafe operations denied" in capsys.readouterr().out
 
 

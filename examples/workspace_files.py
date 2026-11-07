@@ -112,7 +112,9 @@ def _demonstrate(
 
 def main() -> None:
     with TemporaryDirectory(prefix="sofia-workspace-") as temporary:
-        demonstration(Path(temporary))
+        # Windows TEMP can use an 8.3 spelling. Canonicalize this controller-owned
+        # temporary root; untrusted tool paths still reject aliases outright.
+        demonstration(Path(temporary).resolve(strict=True))
 
 
 if __name__ == "__main__":
