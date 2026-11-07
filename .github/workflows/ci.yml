@@ -47,6 +47,9 @@ jobs:
       - name: Run tests
         run: python -m pytest -v
 
+      - name: Run offline workspace example
+        run: python examples/workspace_files.py
+
       - name: Check CLI
         run: |
           python -c "import sofia"

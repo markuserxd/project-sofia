@@ -130,6 +130,12 @@ It requires step and task verification, shares existing guardrails, and keeps fi
 limits and sanitized history. Run `python examples/agent_loop.py` for offline success,
 failure, and cancellation demonstrations using only in-memory arithmetic.
 
+The opt-in [workspace file tools](docs/workspace-files.md) add bounded local
+listing, UTF-8 reads, and preview-bound create/replace/delete operations. Trusted
+controllers explicitly configure roots and approvals. Mutations require exclusive
+local access; shared or hostile-writer workspaces are unsupported. Run
+`python examples/workspace_files.py` for a synthetic temporary-workspace example.
+
 ## Develop and test
 
 ```powershell

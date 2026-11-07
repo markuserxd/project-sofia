@@ -15,6 +15,8 @@ from sofia.tools.schemas import (
     ToolDefinition,
     ToolParameter,
 )
+from sofia.tools.workspace import WorkspaceConfig, WorkspaceFiles, WorkspacePreview
+from sofia.tools.workspace_paths import WorkspaceError
 
 __all__ = [
     "DuplicateTool",
@@ -28,4 +30,8 @@ __all__ = [
     "ToolResult",
     "ToolTimeout",
     "UnknownTool",
+    "WorkspaceConfig",
+    "WorkspaceError",
+    "WorkspaceFiles",
+    "WorkspacePreview",
 ]
