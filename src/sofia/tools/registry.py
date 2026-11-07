@@ -109,6 +109,11 @@ class ToolRegistry:
         self._tools: dict[str, _RegisteredTool] = {}
         self._lock = Lock()
 
+    @property
+    def run_guardrails(self) -> RunGuardrails:
+        """Actual shared run identity for trusted orchestration controllers."""
+        return self._run
+
     def register(
         self,
         definition: ToolDefinition,

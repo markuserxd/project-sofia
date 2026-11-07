@@ -124,6 +124,12 @@ execute handlers using the same run permissions, step budget and cancellation.
 It provides cooperative deadlines, structured results and sanitized audit events.
 No tools are automatically registered or invoked by the CLI or providers.
 
+The [bounded agent loop](docs/agent-loop.md) connects trusted or explicitly configured
+JSON planners to the registry through plan, execute, observe, and verify phases.
+It requires step and task verification, shares existing guardrails, and keeps finite
+limits and sanitized history. Run `python examples/agent_loop.py` for offline success,
+failure, and cancellation demonstrations using only in-memory arithmetic.
+
 ## Develop and test
 
 ```powershell
