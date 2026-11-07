@@ -98,6 +98,11 @@ class RoutedProvider:
     router: ModelRouter
     route: str
 
+    @property
+    def run_guardrails(self) -> RunGuardrails:
+        """Expose the same run already enforced by every configured route."""
+        return self.router._run
+
     def generate(self, request: LLMRequest) -> LLMResponse:
         route = self.route
         while True:
