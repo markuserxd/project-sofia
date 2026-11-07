@@ -118,6 +118,12 @@ atomic; unknown usage and overruns block further work. These offline primitives
 do not enable real APIs or tool execution. See [guardrail usage and limitations](docs/guardrails.md)
 for trusted-controller boundaries, exact USD accounting, and adapter obligations.
 
+The [typed tool registry](docs/tool-registry.md) lets trusted application code
+explicitly register and discover tools, validate bounded JSON arguments, and
+execute handlers using the same run permissions, step budget and cancellation.
+It provides cooperative deadlines, structured results and sanitized audit events.
+No tools are automatically registered or invoked by the CLI or providers.
+
 ## Develop and test
 
 ```powershell
