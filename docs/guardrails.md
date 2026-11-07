@@ -99,6 +99,10 @@ integrations, but do not independently enforce each other's responsibilities.
   zero-cost work. Already-open reservations may still settle. There is no reset
   or retroactive refund API; trusted controllers must surface this run failure,
   not silently create another run to continue the same task.
+- Adapters may pass `bounds_exceeded=True` at settlement when a validated
+  provider-specific input/output limit was breached despite spare aggregate
+  capacity. This records actual tokens/USD and blocks atomically, using the same
+  overrun rules. The optional flag defaults to false for existing integrations.
 - Snapshots are immutable and contain only counters. Remaining capacity is
   clamped at zero after an overrun; committed totals retain the full actual cost.
   Cancellation/blocked status still takes precedence over apparent capacity.

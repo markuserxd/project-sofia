@@ -105,6 +105,10 @@ With `failure=None` (the default), `stream_fail_after` has no effect.
 The mock has no retries or fallback routing. An optional, explicitly authorized
 [OpenAI text provider](docs/openai-provider.md) supports generation and streaming
 with per-run permission checks, token/cost accounting, and bounded network options.
+An optional [Anthropic Claude adapter](docs/anthropic-provider.md) adds text
+generation and streaming with cache-aware accounting. [Explicit model routing](docs/model-routing.md)
+connects Mock, OpenAI, and Anthropic on one shared run; fallback is disabled by
+default and requires trusted evidence of a failure before dispatch.
 
 ## Security guardrails
 
@@ -117,7 +121,7 @@ for trusted-controller boundaries, exact USD accounting, and adapter obligations
 ## Develop and test
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -e '.[dev,openai]'
+.\.venv\Scripts\python.exe -m pip install -e '.[dev,openai,anthropic]'
 .\.venv\Scripts\python.exe -m ruff check .
 .\.venv\Scripts\python.exe -m ruff format --check .
 .\.venv\Scripts\python.exe -m mypy src/sofia

@@ -119,6 +119,7 @@ class RunBudget:
         *,
         actual_tokens: int | None,
         actual_usd: Decimal | None,
+        bounds_exceeded: bool = False,
     ) -> None:
         """Trusted accounting only. None means unknown, never a free request.
 
@@ -127,6 +128,8 @@ class RunBudget:
         open reservations can still settle; no accounting block can be reset.
         """
         with self._lock:
+            if type(bounds_exceeded) is not bool:
+                raise InvalidGuardrailInput()
             if (
                 type(reservation) is not Reservation
                 or reservation not in self._reservations
@@ -138,7 +141,11 @@ class RunBudget:
             )
             cost = estimated_usd if actual_usd is None else _micro_usd(actual_usd)
             uncertain = actual_tokens is None or actual_usd is None
-            overrun = tokens > estimated_tokens or cost > estimated_usd
+            # An adapter may also detect an individual input/output cap breach
+            # hidden by unused capacity in the paired aggregate reservation.
+            overrun = (
+                bounds_exceeded or tokens > estimated_tokens or cost > estimated_usd
+            )
             self._tokens += tokens
             self._usd += cost
             self._reserved_tokens -= estimated_tokens

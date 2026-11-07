@@ -29,6 +29,35 @@ def budget(
     )
 
 
+def test_adapter_bound_breach_records_actual_usage_and_blocks_atomically() -> None:
+    ledger = budget()
+    handle = ledger.reserve(estimated_tokens=50, estimated_usd=Decimal("0.5"))
+    with pytest.raises(AccountingBlocked):
+        ledger.settle(
+            handle, actual_tokens=20, actual_usd=Decimal("0.1"), bounds_exceeded=True
+        )
+    assert ledger.snapshot.committed_tokens == 20
+    assert ledger.snapshot.committed_usd == Decimal("0.1")
+    assert ledger.snapshot.reserved_tokens == 0
+    assert ledger.snapshot.blocked
+    with pytest.raises(AccountingBlocked):
+        ledger.reserve(estimated_tokens=0, estimated_usd=Decimal(0))
+    with pytest.raises(InvalidReservation):
+        ledger.settle(handle, actual_tokens=0, actual_usd=Decimal(0))
+
+
+@pytest.mark.parametrize("invalid", [None, 0, 1, "true"])
+def test_invalid_bound_breach_signal_preserves_reservation(invalid) -> None:
+    ledger = budget()
+    handle = ledger.reserve(estimated_tokens=50, estimated_usd=Decimal("0.5"))
+    before = ledger.snapshot
+    with pytest.raises(InvalidGuardrailInput):
+        ledger.settle(
+            handle, actual_tokens=20, actual_usd=Decimal("0.1"), bounds_exceeded=invalid
+        )
+    assert ledger.snapshot == before
+
+
 @pytest.mark.parametrize("value", [-1, True, False, 1.0, "1", None])
 def test_invalid_counts_in_limits_estimates_and_settlements(value: object) -> None:
     invalid = cast(int, value)
