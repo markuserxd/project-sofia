@@ -15,6 +15,17 @@ class TemporaryProviderError(ProviderError):
     """A temporary provider failure; no automatic retry is performed."""
 
 
+class UndispatchedProviderError(TemporaryProviderError):
+    """Trusted adapter evidence: no dispatch/output/charge, reservation settled.
+
+    Only transport connection-establishment evidence may produce this signal.
+    Generic temporary failures never authorize retry or fallback.
+    """
+
+    def __init__(self) -> None:
+        super().__init__("provider_connection_not_dispatched")
+
+
 class InvalidRequestError(ProviderError):
     """The request is malformed or unsupported by the provider."""
 

@@ -179,6 +179,11 @@ class OpenAIProvider:
             raise ConfigurationError("OpenAI client configuration failed.") from None
 
     @property
+    def run_guardrails(self) -> RunGuardrails:
+        """Expose run identity for trusted routing configuration validation."""
+        return self._run
+
+    @property
     def permission_scope(self) -> str:
         return f"openai:{self._config.model}"
 
