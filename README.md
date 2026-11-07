@@ -104,6 +104,14 @@ handle errors through the end of iteration; a partial stream is not a success.
 With `failure=None` (the default), `stream_fail_after` has no effect.
 There are no retries, fallback routing, or real provider integrations yet.
 
+## Security guardrails
+
+`sofia.security` provides deny-by-default scoped approvals, cooperative emergency
+stop, and per-run step, token, and spending limits. Request reservations are
+atomic; unknown usage and overruns block further work. These offline primitives
+do not enable real APIs or tool execution. See [guardrail usage and limitations](docs/guardrails.md)
+for trusted-controller boundaries, exact USD accounting, and adapter obligations.
+
 ## Develop and test
 
 ```powershell
