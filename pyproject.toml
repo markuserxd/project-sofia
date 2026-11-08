@@ -17,6 +17,7 @@ anthropic = ["anthropic>=2.6,<2.7", "httpx2>=2.16,<2.17"]
 desktop = ["pywinauto==0.6.9; sys_platform == 'win32'", "pywin32>=311; sys_platform == 'win32'"]
 browser = ["playwright>=1.64.1,<1.65"]
 ui = ["PySide6>=6.10.2,<6.11"]
+stt = ["faster-whisper>=1.2.1,<2", "numpy>=2,<3", "scipy>=1.15,<2"]
 
 [project.scripts]
 sofia = "sofia.cli:main"
@@ -28,7 +29,11 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
-markers = ["browser_integration: opt-in real Chromium against the trusted loopback fixture"]
+markers = [
+    "browser_integration: opt-in real Chromium against the trusted loopback fixture",
+    "speech_model: opt-in installed local model and consented local samples",
+    "microphone: opt-in real Windows microphone capture",
+]
 
 [tool.ruff]
 target-version = "py311"

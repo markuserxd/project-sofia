@@ -1,8 +1,9 @@
 """A small desktop shell; widgets cannot register tools or grant capabilities."""
 
-from PySide6.QtCore import QTimer, Slot
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer, Slot
+from PySide6.QtGui import QCloseEvent, QKeyEvent, QMouseEvent
 from PySide6.QtWidgets import (
+    QComboBox,
     QFrame,
     QHBoxLayout,
     QListWidget,
@@ -18,6 +19,7 @@ from sofia.ui.approval import Review
 from sofia.ui.controller import Controller
 from sofia.ui.dialogs import ApprovalDialog, SettingsDialog
 from sofia.ui.models import MAX_TASKS, Outcome, Preferences, Progress
+from sofia.ui.speech_controller import MESSAGES, SpeechController
 from sofia.ui.themes import stylesheet
 from sofia.ui.views import Conversation, MessageInput, TaskView, label
 
@@ -26,6 +28,7 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.controller = Controller(self)
+        self.speech = SpeechController(self)
         self.approval_dialog: ApprovalDialog | None = None
         self.settings_dialog: SettingsDialog | None = None
         self._closing = False
@@ -77,11 +80,34 @@ class MainWindow(QMainWindow):
         self.message = MessageInput()
         self.message.submitted.connect(self._send)
         composer.addWidget(self.message, 1)
+        self.microphone = QPushButton("Hold Mic")
+        self.microphone.setAccessibleName("Push to talk; hold mouse or Space to record")
+        self.microphone.setToolTip(
+            "Hold to record locally; release to transcribe. Escape cancels."
+        )
+        self.microphone.setAutoRepeat(False)
+        self.microphone.pressed.connect(self._record)
+        self.microphone.released.connect(self.speech.release)
+        self.microphone.installEventFilter(self)
+        composer.addWidget(self.microphone)
         self.send = QPushButton("Send")
         self.send.setObjectName("primary")
         self.send.clicked.connect(self._send)
         composer.addWidget(self.send)
         conversation_layout.addLayout(composer)
+        speech_controls = QHBoxLayout()
+        self.speech_language = QComboBox()
+        self.speech_language.addItem("ไทย · Thai", "th")
+        self.speech_language.addItem("English", "en")
+        self.speech_language.setAccessibleName("Speech transcription language")
+        speech_controls.addWidget(self.speech_language)
+        self.speech_status = label("", "muted")
+        self.speech_status.setAccessibleName("Microphone and transcription status")
+        speech_controls.addWidget(self.speech_status, 1)
+        self.speech_cancel = QPushButton("Cancel voice")
+        self.speech_cancel.clicked.connect(self.speech.cancel)
+        speech_controls.addWidget(self.speech_cancel)
+        conversation_layout.addLayout(speech_controls)
         self.input_hint = label(
             "Up to 4,096 characters · English / ไทย · no transcript storage", "muted"
         )
@@ -120,6 +146,7 @@ class MainWindow(QMainWindow):
         )
         self.cancel.clicked.connect(self.controller.stop)
         self.stop.clicked.connect(self.controller.stop)
+        self.stop.clicked.connect(self.speech.cancel)
         footer.addWidget(self.cancel)
         footer.addWidget(self.stop)
         outer.addLayout(footer)
@@ -132,11 +159,16 @@ class MainWindow(QMainWindow):
         self.controller.approval_closed.connect(self._dismiss_approval)
         self.controller.preferences_changed.connect(self._preferences)
         self.controller.idle.connect(self._idle)
+        self.speech.changed.connect(self._speech_changed)
+        self.speech.transcript.connect(self._insert_transcript)
+        self.speech.idle.connect(self._idle)
         self._preferences(self.controller.preferences)
         self._busy(False)
         self._welcome()
         QWidget.setTabOrder(self.message, self.send)
-        QWidget.setTabOrder(self.send, self.stop)
+        QWidget.setTabOrder(self.send, self.microphone)
+        QWidget.setTabOrder(self.microphone, self.speech_language)
+        QWidget.setTabOrder(self.speech_language, self.stop)
         QWidget.setTabOrder(self.stop, self.settings_button)
         self.message.setFocus()
 
@@ -152,6 +184,7 @@ class MainWindow(QMainWindow):
     def _new_chat(self) -> None:
         if self.controller.busy:
             return
+        self.speech.cancel()
         replacement = Conversation()
         parent = self.conversation.parentWidget()
         assert parent is not None
@@ -171,6 +204,7 @@ class MainWindow(QMainWindow):
 
     @Slot(bool)
     def _busy(self, busy: bool) -> None:
+        self.speech.block(busy or self._closing)
         for widget in (
             self.message,
             self.send,
@@ -181,11 +215,79 @@ class MainWindow(QMainWindow):
         ):
             widget.setEnabled(not busy and not self._closing)
         self.cancel.setEnabled(busy)
-        self.stop.setEnabled(busy)
+        self.stop.setEnabled(busy or self.speech.busy)
         if busy:
             self.status.setText("Processing offline…")
         elif not self._closing:
             self.message.setFocus()
+
+    def _record(self) -> None:
+        if (
+            not self._closing
+            and not self.controller.busy
+            and self.approval_dialog is None
+        ):
+            self.speech.start(self.speech_language.currentData())
+
+    @Slot()
+    def _speech_changed(self) -> None:
+        busy = self.speech.busy
+        self.microphone.setEnabled(
+            not self._closing
+            and not self.controller.busy
+            and (not busy or self.speech.state in ("initializing", "recording"))
+        )
+        self.speech_language.setEnabled(not busy and not self._closing)
+        self.speech_cancel.setEnabled(busy)
+        self.stop.setEnabled(busy or self.controller.busy)
+        text = MESSAGES[self.speech.state]
+        if self.speech.state == "recording":
+            text += f" · {self.speech.elapsed:.1f} / 15 s"
+        if self.speech.state == "transcribing" and self.speech.limited:
+            text = "Recording reached the time limit. " + text
+        self.speech_status.setText(text)
+
+    @Slot(str)
+    def _insert_transcript(self, text: str) -> None:
+        if self._closing or self.controller.busy or self.approval_dialog is not None:
+            return
+        current = self.message.toPlainText()
+        addition = (" " if current and not current[-1].isspace() else "") + text
+        if len(current) + len(addition) > 4096:
+            self.speech.reject_draft()
+            return
+        # Append to the current draft, including edits made during inference.
+        cursor = self.message.textCursor()
+        cursor.movePosition(cursor.MoveOperation.End)
+        cursor.insertText(addition)
+        self.message.setTextCursor(cursor)
+        self.message.setFocus()
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if watched is self.microphone:
+            if (
+                event.type() == QEvent.Type.MouseButtonRelease
+                and isinstance(event, QMouseEvent)
+                and event.button() == Qt.MouseButton.LeftButton
+            ):
+                # QAbstractButton may omit released() when released outside.
+                self.speech.release()
+            if event.type() == QEvent.Type.FocusOut and self.speech.state in (
+                "initializing",
+                "recording",
+            ):
+                self.speech.cancel()
+            elif event.type() == QEvent.Type.KeyPress:
+                if isinstance(event, QKeyEvent) and event.key() == Qt.Key.Key_Escape:
+                    self.speech.cancel()
+                    return True
+        return super().eventFilter(watched, event)
+
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.Type.ActivationChange and not self.isActiveWindow():
+            if self.speech.state in ("initializing", "recording"):
+                self.speech.cancel()
+        super().changeEvent(event)
 
     @Slot(object)
     def _progress(self, snapshot: Progress) -> None:
@@ -252,6 +354,7 @@ class MainWindow(QMainWindow):
 
     @Slot(object)
     def _approval(self, review: Review) -> None:
+        self.speech.block(True)
         if self.approval_dialog is not None or self._closing:
             self.controller.decide(review, False)
             return
@@ -293,16 +396,17 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def _idle(self) -> None:
-        if self._closing:
+        if self._closing and not self.speech.busy and not self.controller.busy:
             QTimer.singleShot(0, self.close)
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self._closing = True
+        self.speech.shutdown()
         self.settings_button.setEnabled(False)
         self._dismiss_approval()
         if self.settings_dialog:
             self.settings_dialog.reject()
-        if self.controller.busy:
+        if self.controller.busy or self.speech.busy:
             event.ignore()
             self.controller.shutdown()
         else:

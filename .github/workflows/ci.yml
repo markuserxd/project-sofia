@@ -33,13 +33,13 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install package and development tools
-        run: python -m pip install -e ".[dev,ui,browser,openai,anthropic]"
+        run: python -m pip install -e ".[dev,ui,stt,browser,openai,anthropic]"
 
       - name: Install Linux Qt runtime libraries
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y libegl1 libopengl0
+          sudo apt-get install --no-install-recommends -y libegl1 libopengl0 libpulse0
 
       - name: Check lint
         run: python -m ruff check .

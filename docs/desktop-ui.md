@@ -30,7 +30,8 @@ Essentials, Addons and Shiboken; the GUI uses Core, Gui and Widgets, and tests u
 QtTest. No additional UI framework or pytest-qt dependency is installed. On Linux,
 native display use requires Qt's platform libraries; offscreen CI needs no display.
 Ubuntu also needs `libegl1` and `libopengl0` even for QtGui/QtTest imports without
-a display. CI installs those runtime libraries explicitly. For a local Ubuntu
+a display, and `libpulse0` for the Issue #13 QtMultimedia import. CI installs
+those runtime libraries explicitly. For a local Ubuntu
 installation, install them with the system package manager before running Qt.
 
 The original `python -m sofia`, `--help`, `--version` and `sofia` CLI remain
@@ -174,9 +175,10 @@ execution metadata and fixed UI diagnostic codes. Input and review payloads
 are never interpolated into diagnostics. Non-sensitive preference changes cannot
 select providers, change budgets or modify any task's security grants.
 
-Voice and microphone integration, persistent memory, scheduling and background
-agents remain outside this issue. Future voice input must submit through the same
-bounded controller and cannot act as approval authority for protected proposals.
+Issue #13 adds optional [offline push-to-talk](speech-to-text.md) as draft composer
+input through the same bounded controller. Voice cannot act as approval authority
+for protected proposals. Persistent memory, scheduling and background agents remain
+outside this UI's scope.
 
 ## Automated verification
 
