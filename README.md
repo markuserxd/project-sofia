@@ -49,6 +49,13 @@ Transcripts become editable drafts; Send and protected approvals remain manual.
 No audio is saved/uploaded and no model is downloaded during transcription.
 See [speech setup, privacy and testing](docs/speech-to-text.md).
 
+Opt-in local speech output uses `python -m pip install -e ".[ui,tts]"` and
+`python -m sofia.ui`. Enable voice playback in **Settings**, choose an installed
+Thai or English voice, then use **Read Aloud** or **Test selected voice**.
+Stop Speaking and Emergency Stop cancel queued/current speech. Nothing is spoken
+at startup, uploaded, downloaded or saved. See [voice setup and testing](docs/text-to-speech.md)
+for installed-voice limitations, speed/volume, half-duplex STT and Windows checks.
+
 ## Configuration and logging
 
 Running `python -m sofia` with no options validates settings and initializes

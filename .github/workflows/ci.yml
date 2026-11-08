@@ -33,7 +33,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install package and development tools
-        run: python -m pip install -e ".[dev,ui,stt,browser,openai,anthropic]"
+        run: python -m pip install -e ".[dev,ui,stt,tts,browser,openai,anthropic]"
 
       - name: Install Linux Qt runtime libraries
         if: runner.os == 'Linux'

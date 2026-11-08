@@ -36,10 +36,13 @@ def window(qapp, monkeypatch):
 
     from speech_helpers import FakeCapture, FakeRecognizer
 
+    from sofia.tts import native
     from sofia.ui import speech_controller
     from sofia.ui.main_window import MainWindow
 
     monkeypatch.setattr(speech_controller, "AudioCapture", FakeCapture)
+    # Ordinary UI tests enumerate no native voices and never touch speakers.
+    monkeypatch.setattr(native, "available_engines", lambda: ())
     monkeypatch.setattr(
         speech_controller, "OfflineRecognizer", lambda path: FakeRecognizer()
     )

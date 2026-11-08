@@ -1,9 +1,10 @@
 """Bounded immutable GUI snapshots and non-sensitive session preferences."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from sofia.core import AgentResult, TaskStatus
 from sofia.security import BudgetSnapshot
+from sofia.tts.models import TTSConfig
 
 MAX_MESSAGE = 4096
 MAX_MESSAGES = 80
@@ -15,6 +16,7 @@ class Preferences:
     theme: str = "Dark"
     font_size: int = 11
     timestamps: bool = True
+    tts: TTSConfig = field(default_factory=TTSConfig)
 
     def __post_init__(self) -> None:
         if (
@@ -23,6 +25,7 @@ class Preferences:
             or type(self.font_size) is not int
             or not 10 <= self.font_size <= 18
             or type(self.timestamps) is not bool
+            or type(self.tts) is not TTSConfig
         ):
             raise ValueError("invalid_preferences")
 

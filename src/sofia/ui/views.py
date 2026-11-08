@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QLabel,
     QPlainTextEdit,
+    QPushButton,
     QScrollArea,
     QSizePolicy,
     QVBoxLayout,
@@ -61,6 +62,8 @@ class MessageInput(QPlainTextEdit):
 
 
 class Conversation(QScrollArea):
+    read_aloud = Signal(str)
+
     def __init__(self) -> None:
         super().__init__()
         self.setWidgetResizable(True)
@@ -88,6 +91,11 @@ class Conversation(QScrollArea):
         content.setAccessibleName(f"{role} message")
         content.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         layout.addWidget(content)
+        if role == "Sofia":
+            read = QPushButton("Read Aloud")
+            read.setAccessibleName("Read this visible Sofia response aloud")
+            read.clicked.connect(lambda: self.read_aloud.emit(content.text()))
+            layout.addWidget(read)
         self.rows.insertWidget(self.rows.count() - 1, frame)
         while len(self._timestamps) > MAX_MESSAGES:
             self._timestamps.pop(0)
