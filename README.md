@@ -153,3 +153,10 @@ demo and real Windows smoke test require explicit opt-in and an interactive sess
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for coding standards and package boundaries.
+
+## Browser automation
+
+An opt-in Playwright adapter supports reviewed synthetic loopback fixtures with
+isolated sessions, exact permissions, one-shot form approvals and controlled text
+downloads. Remote browsing is disabled. See [browser automation](docs/browser-automation.md)
+for installation, security limits and the real Chromium demonstration.
