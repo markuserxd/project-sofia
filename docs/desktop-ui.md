@@ -52,7 +52,9 @@ are disabled, with a second controller check preventing duplicate starts. Settin
 and Emergency Stop remain accessible. New chat clears the visible transcript.
 Only the latest 80 message bubbles and 20 run outcomes are retained in memory.
 
-Chat uses the existing MockLLMProvider with a fixed friendly bilingual reply. It
+Chat uses the existing MockLLMProvider with a fixed friendly reply in the selected
+conversation language (Thai by default, or English in Settings). See
+[personality and language configuration](personality.md). It
 does not understand arbitrary requests, plan from conversation text, or activate
 tools mentioned in messages. OpenAI/Anthropic are shown as unavailable. There is
 no API-key field and no real-provider onboarding in this issue.

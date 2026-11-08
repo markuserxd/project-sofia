@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 
 from sofia.core import AgentResult, TaskStatus
+from sofia.persona import ConversationLanguage, PersonaConfig
 from sofia.security import BudgetSnapshot
 from sofia.tts.models import TTSConfig
 
@@ -17,6 +18,7 @@ class Preferences:
     font_size: int = 11
     timestamps: bool = True
     tts: TTSConfig = field(default_factory=TTSConfig)
+    conversation_language: ConversationLanguage = "th"
 
     def __post_init__(self) -> None:
         if (
@@ -28,6 +30,7 @@ class Preferences:
             or type(self.tts) is not TTSConfig
         ):
             raise ValueError("invalid_preferences")
+        PersonaConfig(language=self.conversation_language)
 
 
 @dataclass(frozen=True, slots=True)

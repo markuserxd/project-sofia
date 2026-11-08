@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from sofia.core import TaskStatus
+from sofia.persona import PersonaConfig, mock_reply
 from sofia.ui.approval import Review
 from sofia.ui.controller import Controller
 from sofia.ui.dialogs import ApprovalDialog, SettingsDialog
@@ -197,9 +198,11 @@ class MainWindow(QMainWindow):
     def _welcome(self) -> None:
         self.conversation.add(
             "Sofia",
-            "สวัสดี! Hi, I'm Sofia. Say hello, try a safe task, "
-            "or review a protected demo. Everything here runs offline. "
-            "Your approval stays yours.",
+            mock_reply(
+                PersonaConfig(
+                    language=self.controller.preferences.conversation_language
+                )
+            ),
             self.controller.preferences,
         )
 

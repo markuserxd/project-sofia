@@ -42,6 +42,12 @@ No API keys, paid calls, real desktop/browser tools or personal-file access are
 enabled. The CLI remains headless. See [desktop UI documentation](docs/desktop-ui.md)
 for architecture, security boundaries, automated tests and the Windows smoke test.
 
+**Settings → Conversation language** selects Thai (default) or English for future
+offline demo replies. SOFIA Friendly has a reusable trusted persona/prompt builder;
+the GUI still returns fixed mock text, with no general LLM conversation or paid
+provider activation. See [personality and bilingual conversation](docs/personality.md)
+for configuration, security boundaries and current limitations.
+
 Optional offline Thai/English push-to-talk is available in the same composer:
 install `.[ui,stt]`, deliberately install a local multilingual model, set
 `SOFIA_STT_MODEL_DIR`, then hold **Hold Mic** (or focus it and hold Space).

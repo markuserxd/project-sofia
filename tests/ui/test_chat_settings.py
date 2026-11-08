@@ -5,6 +5,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QLabel
 
+from sofia.persona import mock_reply
 from sofia.ui.models import MAX_MESSAGE, MAX_MESSAGES, MAX_TASKS, Preferences
 
 
@@ -41,7 +42,7 @@ def test_chat_unicode_and_inert_text(window, wait, text):
     assert not window.controller.start("chat", text)
     wait(lambda: not window.controller.busy)
     assert messages(window)[1] == text
-    assert "offline mock reply" in messages(window)[2]
+    assert messages(window)[2] == mock_reply()
     assert len(window.controller.history) == 1
     for item in window.conversation.findChildren(QLabel):
         assert item.textFormat() == Qt.TextFormat.PlainText

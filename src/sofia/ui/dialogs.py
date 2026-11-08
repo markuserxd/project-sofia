@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from sofia.persona import PersonaConfig
 from sofia.tts.models import TTSConfig
 from sofia.ui.approval import Review
 from sofia.ui.models import Preferences
@@ -101,6 +102,17 @@ class SettingsDialog(QDialog):
         layout.addRow("Theme", self.theme)
         layout.addRow("Font size", self.font_size)
         layout.addRow(self.timestamps)
+        self.conversation_language = QComboBox()
+        self.conversation_language.addItem("ไทย (Thai)", "th")
+        self.conversation_language.addItem("English", "en")
+        self.conversation_language.setCurrentIndex(
+            self.conversation_language.findData(preferences.conversation_language)
+        )
+        self.conversation_language.setAccessibleName("Conversation language")
+        self.conversation_language.setToolTip(
+            "Future chat replies only; recognition and playback languages stay independent."
+        )
+        layout.addRow("Conversation &language", self.conversation_language)
         self.voice_enabled = QCheckBox(
             "Enable local voice playback (manual Read Aloud only)"
         )
@@ -174,6 +186,7 @@ class SettingsDialog(QDialog):
         layout.addRow(buttons)
 
     def _save(self) -> None:
+        persona = PersonaConfig(language=self.conversation_language.currentData())
         config = self._voice_config()
         if not self.tts.configure(config):
             self.voice_hint.setText(self.tts_message())
@@ -184,6 +197,7 @@ class SettingsDialog(QDialog):
                 self.font_size.value(),
                 self.timestamps.isChecked(),
                 config,
+                conversation_language=persona.language,
             )
         )
         self.accept()

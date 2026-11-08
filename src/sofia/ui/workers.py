@@ -18,7 +18,8 @@ from sofia.core import (
     VerificationStatus,
 )
 from sofia.logging_setup import task_log_context
-from sofia.providers import LLMMessage, LLMRequest, MockLLMProvider
+from sofia.persona import PersonaConfig, compose_request, mock_reply
+from sofia.providers import MockLLMProvider
 from sofia.security import OperationCancelled
 from sofia.tools import JSONValue, ToolContext, ToolDefinition, ToolRegistry
 from sofia.ui.approval import ApprovalCoordinator
@@ -37,12 +38,14 @@ class Worker(QObject):
         mode: str,
         message: str,
         coordinator: ApprovalCoordinator | None,
+        persona: PersonaConfig = PersonaConfig(),
     ) -> None:
         super().__init__()
         self.task = task
         self.mode = mode
         self.message = message
         self.coordinator = coordinator
+        self.persona = persona
 
     def report(self) -> None:
         self.progress.emit(
@@ -56,11 +59,8 @@ class Worker(QObject):
                 self.task.run.cancellation.checkpoint()
                 if self.mode == "chat":
                     response = MockLLMProvider(
-                        response_text=(
-                            "สวัสดี! Hi, I'm Sofia. This is an offline mock reply. "
-                            "Try a safe task or review a synthetic approval — no API bill attached."
-                        )
-                    ).generate(LLMRequest((LLMMessage("user", self.message),)))
+                        response_text=mock_reply(self.persona)
+                    ).generate(compose_request(self.message, self.persona))
                     self.task.run.cancellation.checkpoint()
                     outcome = Outcome(
                         self.task.task_id, reply=response.content[:MAX_MESSAGE]
