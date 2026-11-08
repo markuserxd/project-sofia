@@ -7,6 +7,7 @@ from decimal import Decimal
 from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal, Slot
 
 from sofia.core import AgentTask, TaskStatus
+from sofia.persona import PersonaConfig
 from sofia.security import Action, RunGuardrails
 from sofia.ui.approval import ApprovalCoordinator, MemoryFixture, Review
 from sofia.ui.models import MAX_MESSAGE, MAX_TASKS, Outcome, Preferences, Progress
@@ -65,7 +66,13 @@ class Controller(QObject):
             ApprovalCoordinator(MemoryFixture(task)) if mode == "approval" else None
         )
         thread = QThread(self)
-        worker = Worker(task, mode, message, coordinator)
+        worker = Worker(
+            task,
+            mode,
+            message,
+            coordinator,
+            PersonaConfig(language=self.preferences.conversation_language),
+        )
         worker.moveToThread(thread)
         self._job = _Job(task, thread, worker, coordinator)
         thread.started.connect(worker.execute)
