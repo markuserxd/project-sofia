@@ -38,7 +38,9 @@ def run_demo() -> None:
             BrowserConfig((policy,), timeout=15),
             run=run,
             backend=backend,
-            quarantine=Path(directory),
+            # Windows runners may supply a DOS short-name TEMP path. Expand the
+            # controller-created root before applying the unchanged root checks.
+            quarantine=Path(directory).resolve(strict=True),
             exclusive_access=True,
         ) as adapter:
             adapter.register(registry)

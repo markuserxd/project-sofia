@@ -22,7 +22,10 @@ def test_real_chromium_fixture():
         timeout=180,
     )
     # Do not put raw Playwright exceptions, DOM, form content or URLs in CI artifacts.
-    assert result.returncode == 0, (
-        "Real fixture failed; run the documented demo locally"
-    )
-    assert "cancellation and cleanup passed" in result.stdout
+    returncode = result.returncode
+    completed = "cancellation and cleanup passed" in result.stdout
+    # Pytest assertion introspection can render a whole CompletedProcess, including
+    # captured stderr, even when the assertion message itself is sanitized.
+    del result
+    assert returncode == 0, "Real fixture failed; run the documented demo locally"
+    assert completed
