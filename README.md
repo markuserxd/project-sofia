@@ -138,6 +138,12 @@ local access; shared or hostile-writer workspaces are unsupported. Run
 
 ## Develop and test
 
+The opt-in [Windows desktop tools](docs/windows-desktop-automation.md) provide
+allowlisted discovery and launch, exact action previews, one-shot approvals,
+semantic UIA control interactions and emergency stop. Desktop dependencies are
+optional; normal CLI startup performs no automation. The dedicated synthetic GUI
+demo and real Windows smoke test require explicit opt-in and an interactive session.
+
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e '.[dev,openai,anthropic]'
 .\.venv\Scripts\python.exe -m ruff check .

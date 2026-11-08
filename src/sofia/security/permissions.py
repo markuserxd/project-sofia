@@ -19,6 +19,9 @@ class Action(Enum):
     SETTINGS_CHANGE = "settings_change"
     SENSITIVE_READ = "sensitive_read"
     API_REQUEST = "api_request"
+    DESKTOP_OBSERVE = "desktop_observe"
+    APP_LAUNCH = "app_launch"
+    UI_INTERACT = "ui_interact"
 
 
 def _validate_scope(action: Action, target: str) -> None:
