@@ -174,9 +174,10 @@ execution metadata and fixed UI diagnostic codes. Input and review payloads
 are never interpolated into diagnostics. Non-sensitive preference changes cannot
 select providers, change budgets or modify any task's security grants.
 
-Voice and microphone integration, persistent memory, scheduling and background
-agents remain outside this issue. Future voice input must submit through the same
-bounded controller and cannot act as approval authority for protected proposals.
+Issue #13 adds optional [offline push-to-talk](speech-to-text.md) as draft composer
+input through the same bounded controller. Voice cannot act as approval authority
+for protected proposals. Persistent memory, scheduling and background agents remain
+outside this UI's scope.
 
 ## Automated verification
 

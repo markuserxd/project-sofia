@@ -34,7 +34,15 @@ def window(qapp, monkeypatch):
     import subprocess
     import webbrowser
 
+    from speech_helpers import FakeCapture, FakeRecognizer
+
+    from sofia.ui import speech_controller
     from sofia.ui.main_window import MainWindow
+
+    monkeypatch.setattr(speech_controller, "AudioCapture", FakeCapture)
+    monkeypatch.setattr(
+        speech_controller, "OfflineRecognizer", lambda path: FakeRecognizer()
+    )
 
     def forbidden(*args, **kwargs):
         raise AssertionError("Unexpected process, URL, or desktop action")
@@ -47,7 +55,7 @@ def window(qapp, monkeypatch):
     widget.show()
     yield widget
     widget.close()
-    wait_until(lambda: not widget.controller.busy)
+    wait_until(lambda: not widget.controller.busy and not widget.speech.busy)
     qapp.processEvents()
     widget.deleteLater()
 

@@ -42,6 +42,13 @@ No API keys, paid calls, real desktop/browser tools or personal-file access are
 enabled. The CLI remains headless. See [desktop UI documentation](docs/desktop-ui.md)
 for architecture, security boundaries, automated tests and the Windows smoke test.
 
+Optional offline Thai/English push-to-talk is available in the same composer:
+install `.[ui,stt]`, deliberately install a local multilingual model, set
+`SOFIA_STT_MODEL_DIR`, then hold **Hold Mic** (or focus it and hold Space).
+Transcripts become editable drafts; Send and protected approvals remain manual.
+No audio is saved/uploaded and no model is downloaded during transcription.
+See [speech setup, privacy and testing](docs/speech-to-text.md).
+
 ## Configuration and logging
 
 Running `python -m sofia` with no options validates settings and initializes
