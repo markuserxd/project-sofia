@@ -1,8 +1,8 @@
 # Project SOFIA
 
 SOFIA is a Windows-first project for an autonomous AI desktop assistant. The
-current release provides the Python package and a command-line interface for
-displaying help and version information.
+current release provides the Python package, a command-line interface, and an
+optional offline desktop chat and approval UI.
 
 ## Install on Windows
 
@@ -26,6 +26,21 @@ Both commands run offline and require no API credentials or environment file.
 ```
 
 The install also provides `sofia.exe` in `.venv\Scripts`.
+
+## Use the optional desktop UI
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[ui]"
+.\.venv\Scripts\python.exe -m sofia.ui
+# Or: .\.venv\Scripts\sofia-gui.exe
+```
+
+The PySide6 UI offers offline mock chat, Thai/English text, real bounded Agent
+Loop demonstrations, sanitized task history, exact human approval for a harmless
+in-memory fixture, Cancel, Emergency Stop and session-only display settings.
+No API keys, paid calls, real desktop/browser tools or personal-file access are
+enabled. The CLI remains headless. See [desktop UI documentation](docs/desktop-ui.md)
+for architecture, security boundaries, automated tests and the Windows smoke test.
 
 ## Configuration and logging
 
