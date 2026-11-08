@@ -15,6 +15,7 @@ dev = ["mypy>=1.11", "pytest>=8", "ruff>=0.6"]
 openai = ["openai>=2.54,<3", "httpx>=0.28,<1"]
 anthropic = ["anthropic>=2.6,<2.7", "httpx2>=2.16,<2.17"]
 desktop = ["pywinauto==0.6.9; sys_platform == 'win32'", "pywin32>=311; sys_platform == 'win32'"]
+browser = ["playwright>=1.64.1,<1.65"]
 
 [project.scripts]
 sofia = "sofia.cli:main"
@@ -25,6 +26,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = ["browser_integration: opt-in real Chromium against the trusted loopback fixture"]
 
 [tool.ruff]
 target-version = "py311"
