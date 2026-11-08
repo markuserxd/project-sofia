@@ -10,6 +10,7 @@ from PySide6.QtCore import (
     Qt,
     QTimer,
     Signal,
+    Slot,
 )
 from PySide6.QtMultimedia import QAudioFormat, QAudioSource, QMediaDevices, QtAudio
 
@@ -89,30 +90,37 @@ class AudioCapture(QObject):
                 raise SpeechError("capture_failed")
             self._io.readyRead.connect(self._read)
             self._timer.start()
-            self._state(source.state())
+            self._state()
         except SpeechError as exc:
             self._fail(exc.code)
         except Exception:
             self._fail("capture_failed")
 
-    def _state(self, state: QtAudio.State) -> None:
+    @Slot()
+    def _state(self) -> None:
         source = self._source
+
         if source is None or (
             self.sender() is not None and self.sender() is not source
         ):
             return
+
+        state = source.state()
         error = source.error()
+
         if error != QtAudio.Error.NoError or state in (
             QtAudio.State.StoppedState,
             QtAudio.State.SuspendedState,
         ):
             self._fail("capture_failed")
+
         elif state == QtAudio.State.ActiveState and not self._started:
             self._started = True
             self.started.emit()
 
     def _devices_changed(self) -> None:
         self.availability_changed.emit(self.available())
+
         if self._source and self._device_id not in {
             bytes(d.id().data()) for d in QMediaDevices.audioInputs()
         }:
