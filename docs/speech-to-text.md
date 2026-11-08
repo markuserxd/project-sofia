@@ -25,6 +25,11 @@ GPU, paid API or separate system FFmpeg installation is required. The CLI and
 imports of `sofia`, `sofia.ui` and `sofia.speech` do not load models or microphones.
 Dependencies are optional; missing STT packages produce a fixed installation hint.
 
+On Ubuntu, install `libegl1 libopengl0 libpulse0` through the system package
+manager before launching Qt or running offscreen tests. Qt Multimedia links
+`libpulse.so.0` even when synthetic test devices are used; no running audio server
+or physical microphone is needed for the mock tests. CI installs these libraries.
+
 Start with [Systran/faster-whisper-base](https://huggingface.co/Systran/faster-whisper-base).
 This is the multilingual base Whisper model converted to CTranslate2, licensed
 MIT. Its model repository is approximately 148 MB (weights about 145 MB).
