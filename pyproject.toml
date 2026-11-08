@@ -18,6 +18,12 @@ desktop = ["pywinauto==0.6.9; sys_platform == 'win32'", "pywin32>=311; sys_platf
 browser = ["playwright>=1.64.1,<1.65"]
 ui = ["PySide6>=6.10.2,<6.11"]
 stt = ["faster-whisper>=1.2.1,<2", "numpy>=2,<3", "scipy>=1.15,<2"]
+tts = [
+    "winrt-Windows.Media.SpeechSynthesis==3.2.1; sys_platform == 'win32'",
+    "winrt-Windows.Storage.Streams==3.2.1; sys_platform == 'win32'",
+    "winrt-Windows.Foundation==3.2.1; sys_platform == 'win32'",
+    "winrt-Windows.Foundation.Collections==3.2.1; sys_platform == 'win32'",
+]
 
 [project.scripts]
 sofia = "sofia.cli:main"
@@ -33,6 +39,8 @@ markers = [
     "browser_integration: opt-in real Chromium against the trusted loopback fixture",
     "speech_model: opt-in installed local model and consented local samples",
     "microphone: opt-in real Windows microphone capture",
+    "tts_native: opt-in real Windows voice enumeration without speech",
+    "tts_playback: opt-in real Windows speaker output with synthetic phrases",
 ]
 
 [tool.ruff]

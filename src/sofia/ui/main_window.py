@@ -21,6 +21,8 @@ from sofia.ui.dialogs import ApprovalDialog, SettingsDialog
 from sofia.ui.models import MAX_TASKS, Outcome, Preferences, Progress
 from sofia.ui.speech_controller import MESSAGES, SpeechController
 from sofia.ui.themes import stylesheet
+from sofia.ui.tts_controller import MESSAGES as TTS_MESSAGES
+from sofia.ui.tts_controller import TTSController
 from sofia.ui.views import Conversation, MessageInput, TaskView, label
 
 
@@ -29,6 +31,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.controller = Controller(self)
         self.speech = SpeechController(self)
+        self.tts = TTSController(self)
         self.approval_dialog: ApprovalDialog | None = None
         self.settings_dialog: SettingsDialog | None = None
         self._closing = False
@@ -72,6 +75,7 @@ class MainWindow(QMainWindow):
         conversation_layout = QVBoxLayout(middle)
         conversation_layout.setContentsMargins(8, 0, 8, 0)
         self.conversation = Conversation()
+        self.conversation.read_aloud.connect(self.tts.speak)
         conversation_layout.addWidget(self.conversation, 1)
         self.status = label("Idle · Ready when you are", "muted")
         self.status.setAccessibleName("Current execution status")
@@ -108,6 +112,19 @@ class MainWindow(QMainWindow):
         self.speech_cancel.clicked.connect(self.speech.cancel)
         speech_controls.addWidget(self.speech_cancel)
         conversation_layout.addLayout(speech_controls)
+        playback_controls = QHBoxLayout()
+        self.playback_status = label(TTS_MESSAGES["idle"], "muted")
+        self.playback_status.setAccessibleName(
+            "Speech playback status and pending count"
+        )
+        playback_controls.addWidget(self.playback_status, 1)
+        self.clear_speech = QPushButton("Clear pending speech")
+        self.clear_speech.clicked.connect(self.tts.clear_pending)
+        playback_controls.addWidget(self.clear_speech)
+        self.stop_speaking = QPushButton("Stop Speaking")
+        self.stop_speaking.clicked.connect(self.tts.cancel)
+        playback_controls.addWidget(self.stop_speaking)
+        conversation_layout.addLayout(playback_controls)
         self.input_hint = label(
             "Up to 4,096 characters · English / ไทย · no transcript storage", "muted"
         )
@@ -147,6 +164,8 @@ class MainWindow(QMainWindow):
         self.cancel.clicked.connect(self.controller.stop)
         self.stop.clicked.connect(self.controller.stop)
         self.stop.clicked.connect(self.speech.cancel)
+        self.stop.clicked.connect(self.tts.cancel)
+        self.cancel.clicked.connect(self.tts.cancel)
         footer.addWidget(self.cancel)
         footer.addWidget(self.stop)
         outer.addLayout(footer)
@@ -162,8 +181,11 @@ class MainWindow(QMainWindow):
         self.speech.changed.connect(self._speech_changed)
         self.speech.transcript.connect(self._insert_transcript)
         self.speech.idle.connect(self._idle)
+        self.tts.changed.connect(self._tts_changed)
+        self.tts.idle.connect(self._idle)
         self._preferences(self.controller.preferences)
         self._busy(False)
+        self._tts_changed()
         self._welcome()
         QWidget.setTabOrder(self.message, self.send)
         QWidget.setTabOrder(self.send, self.microphone)
@@ -185,7 +207,9 @@ class MainWindow(QMainWindow):
         if self.controller.busy:
             return
         self.speech.cancel()
+        self.tts.cancel()
         replacement = Conversation()
+        replacement.read_aloud.connect(self.tts.speak)
         parent = self.conversation.parentWidget()
         assert parent is not None
         layout = parent.layout()
@@ -205,6 +229,7 @@ class MainWindow(QMainWindow):
     @Slot(bool)
     def _busy(self, busy: bool) -> None:
         self.speech.block(busy or self._closing)
+        self.tts.block(busy or self._closing or self.speech.busy)
         for widget in (
             self.message,
             self.send,
@@ -215,7 +240,9 @@ class MainWindow(QMainWindow):
         ):
             widget.setEnabled(not busy and not self._closing)
         self.cancel.setEnabled(busy)
-        self.stop.setEnabled(busy or self.speech.busy)
+        self.stop.setEnabled(
+            busy or self.speech.busy or self.tts.busy or bool(self.tts.queue.pending)
+        )
         if busy:
             self.status.setText("Processing offline…")
         elif not self._closing:
@@ -227,11 +254,23 @@ class MainWindow(QMainWindow):
             and not self.controller.busy
             and self.approval_dialog is None
         ):
+            self.tts.cancel()
+            if self.tts.busy:
+                self.speech_status.setText(
+                    "Waiting for speaker Stop acknowledgement. Hold Mic again when speech stops."
+                )
+                return
             self.speech.start(self.speech_language.currentData())
 
     @Slot()
     def _speech_changed(self) -> None:
         busy = self.speech.busy
+        self.tts.block(
+            busy
+            or self.controller.busy
+            or self._closing
+            or self.approval_dialog is not None
+        )
         self.microphone.setEnabled(
             not self._closing
             and not self.controller.busy
@@ -239,13 +278,31 @@ class MainWindow(QMainWindow):
         )
         self.speech_language.setEnabled(not busy and not self._closing)
         self.speech_cancel.setEnabled(busy)
-        self.stop.setEnabled(busy or self.controller.busy)
+        self.stop.setEnabled(
+            busy
+            or self.controller.busy
+            or self.tts.busy
+            or bool(self.tts.queue.pending)
+        )
         text = MESSAGES[self.speech.state]
         if self.speech.state == "recording":
             text += f" · {self.speech.elapsed:.1f} / 15 s"
         if self.speech.state == "transcribing" and self.speech.limited:
             text = "Recording reached the time limit. " + text
         self.speech_status.setText(text)
+
+    @Slot()
+    def _tts_changed(self) -> None:
+        pending = self.tts.queue.pending
+        notice = f" · {TTS_MESSAGES[self.tts.notice]}" if self.tts.notice else ""
+        self.playback_status.setText(
+            f"{TTS_MESSAGES[self.tts.state]} · {pending} pending{notice}"
+        )
+        self.stop_speaking.setEnabled(self.tts.busy or pending > 0)
+        self.clear_speech.setEnabled(pending > 0)
+        self.stop.setEnabled(
+            self.controller.busy or self.speech.busy or self.tts.busy or pending > 0
+        )
 
     @Slot(str)
     def _insert_transcript(self, text: str) -> None:
@@ -296,6 +353,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def _stopping(self) -> None:
+        self.tts.cancel()
         self.status.setText("Stopping… waiting for the worker to observe cancellation")
         self.cancel.setEnabled(False)
 
@@ -355,6 +413,7 @@ class MainWindow(QMainWindow):
     @Slot(object)
     def _approval(self, review: Review) -> None:
         self.speech.block(True)
+        self.tts.block(True)
         if self.approval_dialog is not None or self._closing:
             self.controller.decide(review, False)
             return
@@ -381,13 +440,22 @@ class MainWindow(QMainWindow):
             self.settings_dialog.show()
             self.settings_dialog.raise_()
             return
-        dialog = SettingsDialog(self.controller.preferences, self)
+        self.tts.discover()
+        dialog = SettingsDialog(self.controller.preferences, self, self.tts)
         self.settings_dialog = dialog
         dialog.saved.connect(self.controller.set_preferences)
+        dialog.finished.connect(self._settings_closed)
         dialog.show()
+
+    @Slot()
+    def _settings_closed(self) -> None:
+        dialog, self.settings_dialog = self.settings_dialog, None
+        if dialog is not None:
+            dialog.deleteLater()
 
     @Slot(object)
     def _preferences(self, preferences: Preferences) -> None:
+        self.tts.configure(preferences.tts)
         font = self.font()
         font.setPointSize(preferences.font_size)
         self.setFont(font)
@@ -396,17 +464,23 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def _idle(self) -> None:
-        if self._closing and not self.speech.busy and not self.controller.busy:
+        if (
+            self._closing
+            and not self.speech.busy
+            and not self.controller.busy
+            and not self.tts.busy
+        ):
             QTimer.singleShot(0, self.close)
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self._closing = True
         self.speech.shutdown()
+        self.tts.shutdown()
         self.settings_button.setEnabled(False)
         self._dismiss_approval()
         if self.settings_dialog:
             self.settings_dialog.reject()
-        if self.controller.busy or self.speech.busy:
+        if self.controller.busy or self.speech.busy or self.tts.busy:
             event.ignore()
             self.controller.shutdown()
         else:
