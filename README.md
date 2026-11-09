@@ -62,6 +62,12 @@ Stop Speaking and Emergency Stop cancel queued/current speech. Nothing is spoken
 at startup, uploaded, downloaded or saved. See [voice setup and testing](docs/text-to-speech.md)
 for installed-voice limitations, speed/volume, half-duplex STT and Windows checks.
 
+**Memory** opens the local Memory Manager. Persistence starts disabled. After
+enabling explicit saves, you can retain a reviewed diary note, task summary, or
+fact, then inspect, edit, search, export, or delete it. See the
+[memory foundation guide](docs/memory-foundation.md) for storage, privacy,
+recovery, and Thai search behavior.
+
 ## Configuration and logging
 
 Running `python -m sofia` with no options validates settings and initializes

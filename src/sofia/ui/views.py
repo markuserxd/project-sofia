@@ -88,6 +88,7 @@ class Conversation(QScrollArea):
         self._timestamps.append(header)
         layout.addWidget(header)
         content = label(text[:MAX_MESSAGE])
+        content.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         content.setAccessibleName(f"{role} message")
         content.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         layout.addWidget(content)

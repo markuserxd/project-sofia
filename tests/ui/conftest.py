@@ -1,11 +1,12 @@
 """Offscreen Qt only for this test session; no desktop interaction required."""
 
+from time import sleep
+
 import pytest
 
 pytest.importorskip("PySide6", reason="Install the optional ui extra for Qt tests")
 
-from PySide6.QtCore import QElapsedTimer
-from PySide6.QtTest import QTest
+from PySide6.QtCore import QCoreApplication, QElapsedTimer, QEvent
 from PySide6.QtWidgets import QApplication
 
 
@@ -13,7 +14,10 @@ def wait_until(predicate, timeout=4000):
     clock = QElapsedTimer()
     clock.start()
     while not predicate() and clock.elapsed() < timeout:
-        QTest.qWait(5)
+        QCoreApplication.processEvents()
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        # Let Python workers run between event-loop turns, including during native I/O.
+        sleep(0.005)
     assert predicate(), "Qt condition did not complete before timeout"
 
 
@@ -58,7 +62,13 @@ def window(qapp, monkeypatch):
     widget.show()
     yield widget
     widget.close()
-    wait_until(lambda: not widget.controller.busy and not widget.speech.busy)
+    wait_until(
+        lambda: (
+            not widget.controller.busy
+            and not widget.speech.busy
+            and widget.memory_dialog is None
+        )
+    )
     qapp.processEvents()
     widget.deleteLater()
 
