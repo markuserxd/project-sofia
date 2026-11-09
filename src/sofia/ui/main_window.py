@@ -16,9 +16,11 @@ from PySide6.QtWidgets import (
 
 from sofia.core import TaskStatus
 from sofia.persona import PersonaConfig, mock_reply
+from sofia.storage import MemoryManager
 from sofia.ui.approval import Review
 from sofia.ui.controller import Controller
 from sofia.ui.dialogs import ApprovalDialog, SettingsDialog
+from sofia.ui.memory_dialog import MemoryDialog
 from sofia.ui.models import MAX_TASKS, Outcome, Preferences, Progress
 from sofia.ui.speech_controller import MESSAGES, SpeechController
 from sofia.ui.themes import stylesheet
@@ -35,6 +37,7 @@ class MainWindow(QMainWindow):
         self.tts = TTSController(self)
         self.approval_dialog: ApprovalDialog | None = None
         self.settings_dialog: SettingsDialog | None = None
+        self.memory_dialog: MemoryDialog | None = None
         self._closing = False
         self.setWindowTitle("SOFIA · Your offline assistant")
         self.resize(1200, 780)
@@ -50,6 +53,9 @@ class MainWindow(QMainWindow):
         header.addStretch()
         self.mode = label("● Offline Mock", "muted")
         header.addWidget(self.mode)
+        self.memory_button = QPushButton("Memory")
+        self.memory_button.clicked.connect(self._memory)
+        header.addWidget(self.memory_button)
         self.settings_button = QPushButton("Settings")
         self.settings_button.clicked.connect(self._settings)
         header.addWidget(self.settings_button)
@@ -69,7 +75,9 @@ class MainWindow(QMainWindow):
         self.tasks.setAccessibleName("Recent task results; last twenty runs")
         self.tasks.currentRowChanged.connect(self._show_history)
         side.addWidget(self.tasks, 1)
-        side.addWidget(label("Private by default\nHistory stays in memory.", "muted"))
+        side.addWidget(
+            label("Private by default\nSave notes explicitly in Memory.", "muted")
+        )
         splitter.addWidget(sidebar)
 
         middle = QWidget()
@@ -127,7 +135,7 @@ class MainWindow(QMainWindow):
         playback_controls.addWidget(self.stop_speaking)
         conversation_layout.addLayout(playback_controls)
         self.input_hint = label(
-            "Up to 4,096 characters · English / ไทย · no transcript storage", "muted"
+            "Up to 4,096 characters · English / ไทย · chat is never auto-saved", "muted"
         )
         conversation_layout.addWidget(self.input_hint)
         splitter.addWidget(middle)
@@ -450,6 +458,22 @@ class MainWindow(QMainWindow):
         dialog.finished.connect(self._settings_closed)
         dialog.show()
 
+    def _memory(self) -> None:
+        if self.memory_dialog is not None:
+            self.memory_dialog.raise_()
+            return
+        dialog = MemoryDialog(MemoryManager(), self)
+        self.memory_dialog = dialog
+        dialog.finished.connect(self._memory_closed)
+        dialog.idle.connect(self._idle)
+        dialog.show()
+
+    @Slot()
+    def _memory_closed(self) -> None:
+        dialog, self.memory_dialog = self.memory_dialog, None
+        if dialog is not None:
+            dialog.deleteLater()
+
     @Slot()
     def _settings_closed(self) -> None:
         dialog, self.settings_dialog = self.settings_dialog, None
@@ -472,6 +496,7 @@ class MainWindow(QMainWindow):
             and not self.speech.busy
             and not self.controller.busy
             and not self.tts.busy
+            and not (self.memory_dialog and self.memory_dialog.busy)
         ):
             QTimer.singleShot(0, self.close)
 
@@ -480,10 +505,18 @@ class MainWindow(QMainWindow):
         self.speech.shutdown()
         self.tts.shutdown()
         self.settings_button.setEnabled(False)
+        self.memory_button.setEnabled(False)
+        if self.memory_dialog:
+            self.memory_dialog.shutdown()
         self._dismiss_approval()
         if self.settings_dialog:
             self.settings_dialog.reject()
-        if self.controller.busy or self.speech.busy or self.tts.busy:
+        if (
+            self.controller.busy
+            or self.speech.busy
+            or self.tts.busy
+            or (self.memory_dialog and self.memory_dialog.busy)
+        ):
             event.ignore()
             self.controller.shutdown()
         else:
