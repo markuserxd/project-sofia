@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
     QHBoxLayout,
+    QLabel,
     QListWidget,
     QMainWindow,
     QPushButton,
@@ -21,12 +22,19 @@ from sofia.ui.approval import Review
 from sofia.ui.controller import Controller
 from sofia.ui.dialogs import ApprovalDialog, SettingsDialog
 from sofia.ui.memory_dialog import MemoryDialog
-from sofia.ui.models import MAX_TASKS, Outcome, Preferences, Progress
+from sofia.ui.models import MAX_TASKS, ChatStatus, Outcome, Preferences, Progress
 from sofia.ui.speech_controller import MESSAGES, SpeechController
 from sofia.ui.themes import stylesheet
 from sofia.ui.tts_controller import MESSAGES as TTS_MESSAGES
 from sofia.ui.tts_controller import TTSController
-from sofia.ui.views import Conversation, MessageInput, TaskView, label
+from sofia.ui.views import (
+    CHAT_MESSAGES,
+    Conversation,
+    MessageInput,
+    TaskView,
+    chat_result,
+    label,
+)
 
 
 class MainWindow(QMainWindow):
@@ -39,7 +47,9 @@ class MainWindow(QMainWindow):
         self.settings_dialog: SettingsDialog | None = None
         self.memory_dialog: MemoryDialog | None = None
         self._closing = False
-        self.setWindowTitle("SOFIA · Your offline assistant")
+        self._chat_route = self.controller.preferences.chat.route
+        self._stream_label: QLabel | None = None
+        self.setWindowTitle("SOFIA · Your desktop assistant")
         self.resize(1200, 780)
         self.setMinimumSize(840, 600)
         central = QWidget()
@@ -162,7 +172,7 @@ class MainWindow(QMainWindow):
 
         footer = QHBoxLayout()
         footer.addWidget(
-            label("Synthetic demos only · no files, browsers or paid APIs", "muted"), 1
+            label("Demo tasks stay offline · chat is text only", "muted"), 1
         )
         self.cancel = QPushButton("Cancel task")
         self.stop = QPushButton("Emergency Stop")
@@ -180,6 +190,7 @@ class MainWindow(QMainWindow):
         outer.addLayout(footer)
         self.controller.busy_changed.connect(self._busy)
         self.controller.progress.connect(self._progress)
+        self.controller.chat_progress.connect(self._chat_progress)
         self.controller.completed.connect(self._completed)
         self.controller.error.connect(self._error)
         self.controller.stopping.connect(self._stopping)
@@ -204,6 +215,8 @@ class MainWindow(QMainWindow):
         self.message.setFocus()
 
     def _welcome(self) -> None:
+        if not self.controller.preferences.chat.offline:
+            return
         self.conversation.add(
             "Sofia",
             mock_reply(
@@ -217,8 +230,14 @@ class MainWindow(QMainWindow):
     def _new_chat(self) -> None:
         if self.controller.busy:
             return
+        self.controller.clear_chat()
         self.speech.cancel()
         self.tts.cancel()
+        self._reset_conversation()
+        self.message.clear()
+        self._chat_idle_status(self.controller.preferences)
+
+    def _reset_conversation(self) -> None:
         replacement = Conversation()
         replacement.read_aloud.connect(self.tts.speak)
         parent = self.conversation.parentWidget()
@@ -226,12 +245,16 @@ class MainWindow(QMainWindow):
         layout = parent.layout()
         assert layout is not None
         layout.replaceWidget(self.conversation, replacement)
+        self.conversation.hide()
         self.conversation.deleteLater()
         self.conversation = replacement
-        self.message.clear()
+        self._stream_label = None
         self._welcome()
 
     def _send(self) -> None:
+        if not self.controller.preferences.chat.offline and self.speech.busy:
+            self.status.setText("Wait for the speech draft to finish before sending.")
+            return
         text = self.message.toPlainText()
         if self.controller.start("chat", text):
             self.conversation.add("You", text, self.controller.preferences)
@@ -251,11 +274,21 @@ class MainWindow(QMainWindow):
         ):
             widget.setEnabled(not busy and not self._closing)
         self.cancel.setEnabled(busy)
+        real_chat = self.controller.real_chat_active
+        self.cancel.setText("Cancel response" if real_chat else "Cancel task")
+        if self.settings_dialog:
+            self.settings_dialog.chat.setEnabled(not real_chat)
         self.stop.setEnabled(
             busy or self.speech.busy or self.tts.busy or bool(self.tts.queue.pending)
         )
         if busy:
-            self.status.setText("Processing offline…")
+            self.status.setText(
+                "Generating response…" if real_chat else "Processing offline…"
+            )
+            if real_chat:
+                self.task_view.setPlainText(
+                    f"{self.controller.preferences.chat.name}\nPreparing guarded request…"
+                )
         elif not self._closing:
             self.message.setFocus()
 
@@ -362,6 +395,24 @@ class MainWindow(QMainWindow):
         self.status.setText(f"Task · {snapshot.status.value}")
         self.task_view.progress(snapshot)
 
+    @Slot(str, object)
+    def _chat_progress(self, text: str, status: ChatStatus) -> None:
+        content = self._stream_label
+        if content is None and text:
+            content = self._new_stream_label(status)
+        if content is not None and content.text() != text:
+            content.setText(text)
+        self.task_view.chat_status(status, "Generating response…")
+
+    def _new_stream_label(self, status: ChatStatus) -> QLabel:
+        self._stream_label = self.conversation.add(
+            f"Sofia · {status.settings.provider}",
+            "",
+            self.controller.preferences,
+            streaming=True,
+        )
+        return self._stream_label
+
     @Slot()
     def _stopping(self) -> None:
         self.tts.cancel()
@@ -371,6 +422,39 @@ class MainWindow(QMainWindow):
     @Slot(object)
     def _completed(self, outcome: Outcome) -> None:
         self.task_view.outcome(outcome)
+        if outcome.chat:
+            state = chat_result(outcome)
+            content = self._stream_label or self._new_stream_label(outcome.chat)
+            if outcome.cancelled or outcome.error:
+                if content.text():
+                    self.conversation.annotate(content, state)
+                else:
+                    content.setText(state)
+            else:
+                content.setText(outcome.reply)
+                self.conversation.add_read_aloud(content)
+            self._stream_label = None
+            self.status.setText(state)
+        else:
+            self._complete_offline(outcome)
+        self.tasks.blockSignals(True)
+        self.tasks.clear()
+        for item in reversed(tuple(self.controller.history)[-MAX_TASKS:]):
+            state = (
+                "stop requested"
+                if item.cancelled
+                else item.result.status.value
+                if item.result
+                else "failed"
+                if item.error
+                else "paid reply"
+                if item.chat
+                else "offline reply"
+            )
+            self.tasks.addItem(f"{state}\n{item.task_id[:8]}")
+        self.tasks.blockSignals(False)
+
+    def _complete_offline(self, outcome: Outcome) -> None:
         if outcome.cancelled:
             text = (
                 "Cancelled. Earlier effects may already have committed."
@@ -394,20 +478,6 @@ class MainWindow(QMainWindow):
             else "Idle · Reply ready"
         )
         self.conversation.add("Sofia", text, self.controller.preferences)
-        self.tasks.blockSignals(True)
-        self.tasks.clear()
-        for item in reversed(tuple(self.controller.history)[-MAX_TASKS:]):
-            state = (
-                "stop requested"
-                if item.cancelled
-                else item.result.status.value
-                if item.result
-                else "failed"
-                if item.error
-                else "offline reply"
-            )
-            self.tasks.addItem(f"{state}\n{item.task_id[:8]}")
-        self.tasks.blockSignals(False)
 
     def _show_history(self, index: int) -> None:
         if not self.controller.busy and 0 <= index < len(self.controller.history):
@@ -418,7 +488,7 @@ class MainWindow(QMainWindow):
         self.status.setText(
             "Enter a message of 1–4,096 characters."
             if code == "invalid_message"
-            else "This request is unavailable."
+            else CHAT_MESSAGES.get(code, "This request is unavailable.")
         )
 
     @Slot(object)
@@ -453,6 +523,7 @@ class MainWindow(QMainWindow):
             return
         self.tts.discover()
         dialog = SettingsDialog(self.controller.preferences, self, self.tts)
+        dialog.chat.setEnabled(not self.controller.real_chat_active)
         self.settings_dialog = dialog
         dialog.saved.connect(self.controller.set_preferences)
         dialog.finished.connect(self._settings_closed)
@@ -487,7 +558,31 @@ class MainWindow(QMainWindow):
         font.setPointSize(preferences.font_size)
         self.setFont(font)
         self.setStyleSheet(stylesheet(preferences.theme))
+        if self._chat_route != preferences.chat.route:
+            self._chat_route = preferences.chat.route
+            self._reset_conversation()
+        self.mode.setText(
+            f"● {preferences.chat.name}"
+            + (
+                " · API disabled"
+                if not preferences.chat.offline and not preferences.chat.paid_enabled
+                else ""
+            )
+        )
+        if not self.controller.busy:
+            self._chat_idle_status(preferences)
         self.conversation.apply_preferences(preferences)
+
+    def _chat_idle_status(self, preferences: Preferences) -> None:
+        chat = preferences.chat
+        if chat.offline:
+            self.status.setText("Idle · Ready when you are")
+        elif chat.paid_enabled:
+            self.status.setText(f"Ready · Send shares this chat with {chat.provider}")
+        else:
+            self.status.setText(
+                "Paid sends disabled · Review Settings → Conversation API"
+            )
 
     @Slot()
     def _idle(self) -> None:

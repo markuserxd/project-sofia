@@ -6,6 +6,7 @@ from threading import Event
 
 from PySide6.QtCore import QObject, Signal, Slot
 
+from sofia.config import ConfigurationError
 from sofia.core import (
     AgentLoop,
     AgentPlan,
@@ -20,10 +21,32 @@ from sofia.core import (
 from sofia.logging_setup import task_log_context
 from sofia.persona import PersonaConfig, compose_request, mock_reply
 from sofia.providers import MockLLMProvider
-from sofia.security import OperationCancelled
+from sofia.providers.base import (
+    InvalidRequestError,
+    ProviderAccessError,
+    ProviderError,
+    ProviderFundsError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+    TemporaryProviderError,
+    UndispatchedProviderError,
+)
+from sofia.security import GuardrailError, OperationCancelled
 from sofia.tools import JSONValue, ToolContext, ToolDefinition, ToolRegistry
 from sofia.ui.approval import ApprovalCoordinator
+from sofia.ui.chat import ChatWork, OutputLimitError, stream_chat
 from sofia.ui.models import MAX_MESSAGE, Outcome, Progress
+
+_CHAT_ERRORS = {
+    ProviderAccessError: "chat_access",
+    ProviderFundsError: "chat_funds",
+    ProviderRateLimitError: "chat_rate_limit",
+    ProviderTimeoutError: "chat_timeout",
+    UndispatchedProviderError: "chat_connection",
+    TemporaryProviderError: "chat_unavailable",
+    InvalidRequestError: "chat_rejected",
+    OutputLimitError: "chat_output_limit",
+}
 
 
 class Worker(QObject):
@@ -39,6 +62,7 @@ class Worker(QObject):
         message: str,
         coordinator: ApprovalCoordinator | None,
         persona: PersonaConfig = PersonaConfig(),
+        chat: ChatWork | None = None,
     ) -> None:
         super().__init__()
         self.task = task
@@ -46,6 +70,7 @@ class Worker(QObject):
         self.message = message
         self.coordinator = coordinator
         self.persona = persona
+        self.chat = chat
 
     def report(self) -> None:
         self.progress.emit(
@@ -57,7 +82,9 @@ class Worker(QObject):
         with task_log_context(self.task.task_id):
             try:
                 self.task.run.cancellation.checkpoint()
-                if self.mode == "chat":
+                if self.chat:
+                    outcome = self.run_chat(self.chat)
+                elif self.mode == "chat":
                     response = MockLLMProvider(
                         response_text=mock_reply(self.persona)
                     ).generate(compose_request(self.message, self.persona))
@@ -78,6 +105,27 @@ class Worker(QObject):
                     self.coordinator.close()
             self.outcome.emit(outcome)
             self.finished.emit()
+
+    def run_chat(self, chat: ChatWork) -> Outcome:
+        task_id, run = self.task.task_id, self.task.run
+        try:
+            stream_chat(chat.settings, chat.request, run, chat.stream)
+        except OperationCancelled:
+            raise
+        except GuardrailError as error:
+            return Outcome(task_id, error=error.code)
+        except ModuleNotFoundError:
+            return Outcome(task_id, error="chat_missing_sdk")
+        except ConfigurationError:
+            return Outcome(task_id, error="chat_configuration")
+        except ProviderError as error:
+            return Outcome(task_id, error=_CHAT_ERRORS.get(type(error), "chat_failed"))
+        text = chat.stream.text
+        return (
+            Outcome(task_id, reply=text)
+            if text.strip()
+            else Outcome(task_id, error="chat_empty")
+        )
 
     def run_agent(self) -> AgentResult:
         registry = ToolRegistry(run=self.task.run)

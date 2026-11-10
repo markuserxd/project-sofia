@@ -15,6 +15,22 @@ class TemporaryProviderError(ProviderError):
     """A temporary provider failure; no automatic retry is performed."""
 
 
+class ProviderAccessError(ProviderError):
+    """The credential or account lacks access."""
+
+
+class ProviderFundsError(ProviderError):
+    """The provider reported a billing or credit limit."""
+
+
+class ProviderRateLimitError(TemporaryProviderError):
+    """The provider reported a rate limit."""
+
+
+class ProviderTimeoutError(TemporaryProviderError):
+    """The provider or transport timed out."""
+
+
 class UndispatchedProviderError(TemporaryProviderError):
     """Trusted adapter evidence: no dispatch/output/charge, reservation settled.
 

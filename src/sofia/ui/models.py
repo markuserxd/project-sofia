@@ -6,6 +6,7 @@ from sofia.core import AgentResult, TaskStatus
 from sofia.persona import ConversationLanguage, PersonaConfig
 from sofia.security import BudgetSnapshot
 from sofia.tts.models import TTSConfig
+from sofia.ui.chat import ChatSettings
 
 MAX_MESSAGE = 4096
 MAX_MESSAGES = 80
@@ -19,6 +20,7 @@ class Preferences:
     timestamps: bool = True
     tts: TTSConfig = field(default_factory=TTSConfig)
     conversation_language: ConversationLanguage = "th"
+    chat: ChatSettings = field(default_factory=ChatSettings)
 
     def __post_init__(self) -> None:
         if (
@@ -28,6 +30,7 @@ class Preferences:
             or not 10 <= self.font_size <= 18
             or type(self.timestamps) is not bool
             or type(self.tts) is not TTSConfig
+            or type(self.chat) is not ChatSettings
         ):
             raise ValueError("invalid_preferences")
         PersonaConfig(language=self.conversation_language)
@@ -40,6 +43,12 @@ class Progress:
     budget: BudgetSnapshot
 
 
+@dataclass(frozen=True, slots=True)
+class ChatStatus:
+    settings: ChatSettings
+    budget: BudgetSnapshot
+
+
 @dataclass(frozen=True, slots=True, repr=False)
 class Outcome:
     task_id: str
@@ -47,3 +56,4 @@ class Outcome:
     reply: str = ""
     error: str = ""
     cancelled: bool = False
+    chat: ChatStatus | None = None

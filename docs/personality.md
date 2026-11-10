@@ -21,7 +21,8 @@ Existing messages are never translated or rewritten. New chat uses the current
 language for its welcome; restarting the application restores defaults. There is
 no Auto detection or mock per-message language override: chat text cannot change
 configuration. No database, profile, memory file or conversation persistence is
-introduced. Issue #16 owns future explicit memory and retention work.
+introduced by the persona. The [Memory Manager](memory-foundation.md) handles
+explicit local saves separately.
 
 Thai prompt policy asks for contemporary, friendly Thai, appropriate ค่ะ/คะ without
 repeating particles in every sentence, and technical English terms only where
@@ -32,7 +33,7 @@ one preset; no style selector or emotional-state tracking is implemented.
 
 ## What the offline GUI actually does
 
-The **● Offline Mock** badge remains visible. The GUI uses `MockLLMProvider` with
+The **● Offline Mock** badge identifies the default mode. It uses `MockLLMProvider` with
 one fixed reply per selected language, independent of the user's message. It
 does not answer arbitrary questions, understand topics, reason, execute chat
 commands, browse, send emails or activate paid services. Its greeting uses the
@@ -63,7 +64,7 @@ response-style guidance. It reads no environment variables, clocks, paths, secre
 or external services. `compose_request` produces an `LLMRequest` with exactly one
 trusted `system` message followed by the unchanged `user` text. It accepts neither
 user-selected roles nor raw task/system instruction strings. No conversation
-history is supplied or invented in this issue.
+history is supplied or invented by this helper.
 
 ```python
 from sofia.persona import PersonaConfig, compose_request
@@ -75,14 +76,11 @@ assert [message.role for message in request.messages] == ["system", "user"]
 assert MockLLMProvider().generate(request).content == "Hello from SOFIA"
 ```
 
-The GUI always uses the default `mode="offline_mock"`. Future trusted text-only
-LLM callers may compose with `mode="text_only"`, which describes no chat tools,
-live information, desktop actions or persistent memory. This argument only
-selects a fixed capability description; it does not instantiate or authorize a
-provider. Existing OpenAI/Anthropic adapters accept the resulting request through
-their established protocols. Real GUI inference remains unavailable. A future
-integration must deliberately configure its provider, credentials, trusted input
-token bound for the entire composed request, permission scope and resource budget.
+Offline Mock uses `mode="offline_mock"`. The
+[optional provider chat](real-llm-desktop-chat.md) uses `mode="text_only"` and
+inserts completed session turns between the system and current user messages.
+Mode selects a fixed capability description. The controller handles provider
+configuration, credentials, permission and budget separately.
 
 The prompt allows explicit per-response language/tone/detail requests for future
 LLM presentation without changing the saved preference. The current canned mock

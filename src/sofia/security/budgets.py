@@ -53,6 +53,7 @@ class BudgetSnapshot:
     reserved_usd: Decimal
     remaining_usd: Decimal
     blocked: bool
+    uncertain: bool = False
 
 
 class RunBudget:
@@ -82,6 +83,7 @@ class RunBudget:
         self._reserved_tokens = 0
         self._reserved_usd = 0
         self._blocked = False
+        self._uncertain = False
         self._reservations: dict[Reservation, tuple[int, int]] = {}
 
     def _check_step(self) -> None:
@@ -153,6 +155,7 @@ class RunBudget:
             del self._reservations[reservation]
             if uncertain or overrun:
                 self._blocked = True
+                self._uncertain |= uncertain
                 raise AccountingBlocked()
 
     @property
@@ -172,4 +175,5 @@ class RunBudget:
                     max(0, self._max_usd - self._usd - self._reserved_usd)
                 ),
                 blocked=self._blocked,
+                uncertain=self._uncertain,
             )

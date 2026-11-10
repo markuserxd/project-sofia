@@ -1,6 +1,6 @@
 # SOFIA desktop UI
 
-Issue #15 adds an optional, offline PySide6 Widgets application. It is a working
+SOFIA provides an optional PySide6 Widgets application. It is a working
 chat and bounded task demonstration, with real Agent Loop execution and human
 approval controls. It does not enable general autonomous desktop operations.
 
@@ -52,12 +52,12 @@ are disabled, with a second controller check preventing duplicate starts. Settin
 and Emergency Stop remain accessible. New chat clears the visible transcript.
 Only the latest 80 message bubbles and 20 run outcomes are retained in memory.
 
-Chat uses the existing MockLLMProvider with a fixed friendly reply in the selected
+Offline Mock uses the existing MockLLMProvider with a fixed friendly reply in the selected
 conversation language (Thai by default, or English in Settings). See
 [personality and language configuration](personality.md). It
 does not understand arbitrary requests, plan from conversation text, or activate
-tools mentioned in messages. OpenAI/Anthropic are shown as unavailable. There is
-no API-key field and no real-provider onboarding in this issue.
+tools mentioned in messages. For optional OpenAI and Anthropic streaming, see the
+[real LLM desktop chat guide](real-llm-desktop-chat.md).
 
 All conversation, status and review details are plain text. QLabel rich text and
 external links are disabled; previews use read-only QPlainTextEdit. HTML, Markdown,
@@ -67,7 +67,7 @@ application-owned styles are separate from all input and provider content.
 ## Controller, threads and progress
 
 `ui/controller.py` owns a fresh AgentTask and RunGuardrails for each submission,
-with 8 steps, 0 API tokens and USD 0. It owns one QObject worker in one QThread.
+with 8 steps, 0 API tokens and USD 0 for offline work. It owns one QObject worker in one QThread.
 The worker calls synchronous core APIs. UI updates arrive through queued signals
 carrying frozen bounded dataclasses. Widgets never run AgentLoop.execute, update
 from worker threads, or access private adapter mutation methods.

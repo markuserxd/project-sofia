@@ -671,6 +671,21 @@ def test_unsuccessful_terminal_usage_is_recorded(make_provider, status):
     assert body.closed
 
 
+@pytest.mark.parametrize(("inputs", "outputs"), [(101, 1), (2, 33)])
+def test_model_sublimit_overrun_blocks_even_below_aggregate_budget(
+    make_provider, inputs, outputs
+):
+    provider, run, calls = make_provider(
+        lambda *_: httpx.Response(200, json=payload(inputs=inputs, outputs=outputs))
+    )
+    with pytest.raises(AccountingBlocked):
+        provider.generate(REQUEST)
+    snapshot = run.budget.snapshot
+    assert snapshot.committed_tokens == inputs + outputs
+    assert snapshot.blocked and not snapshot.uncertain
+    assert len(calls) == 1
+
+
 def test_stream_overrun_is_not_success(make_provider):
     response = payload("", inputs=150)
     body = EventBody(
