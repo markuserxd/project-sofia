@@ -20,7 +20,11 @@ from sofia.providers.base import (
     LLMRequest,
     LLMResponse,
     LLMStreamChunk,
+    ProviderAccessError,
     ProviderError,
+    ProviderFundsError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
     TemporaryProviderError,
 )
 from sofia.providers.openai_accounting import ModelPricing, OpenAIUsage, validate_model
@@ -79,6 +83,7 @@ class OpenAIConfig:
 @dataclass(slots=True, repr=False)
 class _Attempt:
     reservation: Reservation
+    input_bound: int
     dispatched: bool = False
     usage: OpenAIUsage | None = None
     cost: Decimal | None = None
@@ -90,7 +95,16 @@ class _BeforeDispatchError(TemporaryProviderError):
 
 def _provider_error(error: Exception) -> ProviderError:
     if isinstance(error, (openai.AuthenticationError, openai.PermissionDeniedError)):
-        return ProviderError("OpenAI authentication or access failed.")
+        return ProviderAccessError("OpenAI authentication or access failed.")
+    if isinstance(error, openai.APIStatusError) and (
+        error.status_code == 402
+        or error.code in ("insufficient_quota", "billing_hard_limit_reached")
+    ):
+        return ProviderFundsError("OpenAI API billing or quota limit reached.")
+    if isinstance(error, openai.RateLimitError):
+        return ProviderRateLimitError("OpenAI API rate limit reached.")
+    if isinstance(error, (openai.APITimeoutError, httpx.TimeoutException)):
+        return ProviderTimeoutError("OpenAI API request timed out.")
     if isinstance(
         error,
         (openai.BadRequestError, openai.NotFoundError, openai.UnprocessableEntityError),
@@ -100,7 +114,6 @@ def _provider_error(error: Exception) -> ProviderError:
         error,
         (
             openai.APIConnectionError,
-            openai.RateLimitError,
             openai.InternalServerError,
             httpx.RequestError,
         ),
@@ -204,6 +217,11 @@ class OpenAIProvider:
                 if usage
                 else (None if attempt.dispatched else 0),
                 actual_usd=attempt.cost if attempt.dispatched else Decimal(0),
+                bounds_exceeded=usage is not None
+                and (
+                    usage.input_tokens > attempt.input_bound
+                    or usage.output_tokens > self._config.max_output_tokens
+                ),
             )
         except AccountingBlocked as accounting:
             # Keep the sanitized provider/cancellation error visible AND expose
@@ -250,7 +268,8 @@ class OpenAIProvider:
                 self.permission_scope,
                 estimated_tokens=bound + self._config.max_output_tokens,
                 estimated_usd=cost,
-            )
+            ),
+            bound,
         )
         try:
             yield attempt

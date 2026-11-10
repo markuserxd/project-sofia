@@ -2,7 +2,7 @@
 
 SOFIA is a Windows-first project for an autonomous AI desktop assistant. The
 current release provides the Python package, a command-line interface, and an
-optional offline desktop chat and approval UI.
+optional desktop chat and approval UI.
 
 ## Install on Windows
 
@@ -38,15 +38,16 @@ The install also provides `sofia.exe` in `.venv\Scripts`.
 The PySide6 UI offers offline mock chat, Thai/English text, real bounded Agent
 Loop demonstrations, sanitized task history, exact human approval for a harmless
 in-memory fixture, Cancel, Emergency Stop and session-only display settings.
-No API keys, paid calls, real desktop/browser tools or personal-file access are
-enabled. The CLI remains headless. See [desktop UI documentation](docs/desktop-ui.md)
+Offline Mock is the default and works without API keys. The CLI remains
+headless. See [desktop UI documentation](docs/desktop-ui.md)
 for architecture, security boundaries, automated tests and the Windows smoke test.
 
-**Settings → Conversation language** selects Thai (default) or English for future
-offline demo replies. SOFIA Friendly has a reusable trusted persona/prompt builder;
-the GUI still returns fixed mock text, with no general LLM conversation or paid
-provider activation. See [personality and bilingual conversation](docs/personality.md)
-for configuration, security boundaries and current limitations.
+**Settings → General → Conversation language** selects Thai (default) or English
+for future replies. See [personality and bilingual conversation](docs/personality.md).
+**Settings → Conversation API** offers optional OpenAI and Anthropic text chat
+with session-only consent, bounded requests and streaming. See the
+[real LLM desktop chat guide](docs/real-llm-desktop-chat.md) for credentials,
+privacy, costs and Windows acceptance steps.
 
 Optional offline Thai/English push-to-talk is available in the same composer:
 install `.[ui,stt]`, deliberately install a local multilingual model, set

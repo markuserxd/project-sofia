@@ -26,7 +26,11 @@ from sofia.providers.base import (
     LLMRequest,
     LLMResponse,
     LLMStreamChunk,
+    ProviderAccessError,
     ProviderError,
+    ProviderFundsError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
     TemporaryProviderError,
     UndispatchedProviderError,
 )
@@ -122,7 +126,9 @@ def _provider_error(error: Exception) -> ProviderError:
     if isinstance(
         error, (anthropic.AuthenticationError, anthropic.PermissionDeniedError)
     ):
-        return ProviderError("anthropic_access_failed")
+        return ProviderAccessError("anthropic_access_failed")
+    if isinstance(error, anthropic.APIStatusError) and error.status_code == 402:
+        return ProviderFundsError("anthropic_billing_limit")
     if isinstance(
         error,
         (
@@ -132,10 +138,10 @@ def _provider_error(error: Exception) -> ProviderError:
         ),
     ):
         return InvalidRequestError("anthropic_invalid_request")
-    if isinstance(error, anthropic.APITimeoutError):
-        return TemporaryProviderError("anthropic_timeout")
+    if isinstance(error, (anthropic.APITimeoutError, httpx2.TimeoutException)):
+        return ProviderTimeoutError("anthropic_timeout")
     if isinstance(error, anthropic.RateLimitError):
-        return TemporaryProviderError("anthropic_rate_limited")
+        return ProviderRateLimitError("anthropic_rate_limited")
     if isinstance(error, (anthropic.APIConnectionError, httpx2.RequestError)):
         return TemporaryProviderError("anthropic_connection_failed")
     if isinstance(error, anthropic.InternalServerError):

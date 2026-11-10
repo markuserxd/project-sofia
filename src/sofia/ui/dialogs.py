@@ -1,6 +1,6 @@
 """Nonblocking, plain-text review and session-only settings dialogs."""
 
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import QSignalBlocker, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QSpinBox,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -18,8 +19,10 @@ from PySide6.QtWidgets import (
 from sofia.persona import PersonaConfig
 from sofia.tts.models import TTSConfig
 from sofia.ui.approval import Review
+from sofia.ui.chat import MAX_OUTPUT, MIN_OUTPUT, PROVIDERS, ChatSettings, models_for
 from sofia.ui.models import Preferences
 from sofia.ui.tts_controller import TTSController
+from sofia.ui.views import label
 
 
 class ApprovalDialog(QDialog):
@@ -78,6 +81,81 @@ class ApprovalDialog(QDialog):
         super().reject()
 
 
+class ChatControls(QWidget):
+    def __init__(self, settings: ChatSettings) -> None:
+        super().__init__()
+        layout = QFormLayout(self)
+        self.provider = QComboBox()
+        self.provider.addItems(PROVIDERS)
+        self.provider.setCurrentText(settings.provider)
+        self.model = QComboBox()
+        self.credential = label("")
+        self.output = QSpinBox()
+        self.output.setRange(MIN_OUTPUT, MAX_OUTPUT)
+        self.output.setValue(settings.max_output_tokens)
+        self.budget = QSpinBox()
+        self.budget.setRange(1, 100)
+        self.budget.setValue(settings.budget_cents)
+        self.budget.setSuffix(" ¢ USD")
+        self.consent = QCheckBox("Enable paid sends for this session")
+        self.notice = label("")
+        for caption, widget in (
+            ("Conversation provider", self.provider),
+            ("Exact model", self.model),
+            ("API credential", self.credential),
+            ("Maximum output tokens", self.output),
+            ("Maximum cost per Send", self.budget),
+        ):
+            layout.addRow(caption, widget)
+        layout.addRow(self.notice)
+        layout.addRow(self.consent)
+        self._provider_changed()
+        self.model.setCurrentText(settings.model or "—")
+        self.consent.setChecked(settings.paid_enabled and self.consent.isEnabled())
+        self.provider.currentTextChanged.connect(self._provider_changed)
+        self.model.currentTextChanged.connect(self._limits_changed)
+        self.output.valueChanged.connect(self._limits_changed)
+        self.budget.valueChanged.connect(self._limits_changed)
+
+    def value(self) -> ChatSettings:
+        return ChatSettings(
+            self.provider.currentText(),
+            self.model.currentData(),
+            self.consent.isChecked(),
+            self.output.value(),
+            self.budget.value(),
+        )
+
+    def _provider_changed(self) -> None:
+        with QSignalBlocker(self.model):
+            self.model.clear()
+            for model in models_for(self.provider.currentText()):
+                self.model.addItem(model or "—", model)
+        self._limits_changed()
+
+    def _limits_changed(self) -> None:
+        self.consent.setChecked(False)
+        settings = self.value()
+        for widget in (self.model, self.output, self.budget):
+            widget.setEnabled(not settings.offline)
+        self.consent.setEnabled(settings.credential_configured)
+        if settings.offline:
+            self.credential.setText("None needed")
+            self.notice.setText(
+                "Offline Mock uses local demonstration replies. No API charges."
+            )
+            return
+        status = "Configured" if settings.credential_configured else "Missing"
+        self.credential.setText(f"{status} ({settings.credential})")
+        self.notice.setText(
+            f"Send shares your message and completed turns in this chat with "
+            f"{settings.provider}. Provider data policies apply. Switching provider "
+            "or model starts a fresh chat. Settings and chat are session-only.\n\n"
+            f"Each Send needs a reservation of ${settings.reservation_usd:.6f} at "
+            f"the selected limits. A dispatched request may incur charges after Stop."
+        )
+
+
 class SettingsDialog(QDialog):
     saved = Signal(object)
 
@@ -88,7 +166,14 @@ class SettingsDialog(QDialog):
         self.tts = tts
         self._initial_voice_config = preferences.tts
         self.setWindowTitle("SOFIA · Settings")
-        layout = QFormLayout(self)
+        outer = QVBoxLayout(self)
+        tabs = QTabWidget()
+        outer.addWidget(tabs)
+        general = QWidget()
+        layout = QFormLayout(general)
+        tabs.addTab(general, "General")
+        self.chat = ChatControls(preferences.chat)
+        tabs.addTab(self.chat, "Conversation API")
         self.theme = QComboBox()
         self.theme.addItems(["Dark", "Light", "System"])
         self.theme.setCurrentText(preferences.theme)
@@ -169,11 +254,6 @@ class SettingsDialog(QDialog):
         self._voice_available()
         layout.addRow(
             QLabel(
-                "Provider: Offline Mock\nOpenAI / Anthropic: unavailable in this GUI"
-            )
-        )
-        layout.addRow(
-            QLabel(
                 "Preferences last for this session. No credentials or transcripts are stored."
             )
         )
@@ -183,7 +263,7 @@ class SettingsDialog(QDialog):
         )
         buttons.accepted.connect(self._save)
         buttons.rejected.connect(self.reject)
-        layout.addRow(buttons)
+        outer.addWidget(buttons)
 
     def _save(self) -> None:
         persona = PersonaConfig(language=self.conversation_language.currentData())
@@ -198,6 +278,7 @@ class SettingsDialog(QDialog):
                 self.timestamps.isChecked(),
                 config,
                 conversation_language=persona.language,
+                chat=self.chat.value(),
             )
         )
         self.accept()

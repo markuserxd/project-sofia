@@ -57,8 +57,8 @@ def build_system_prompt(
 ) -> str:
     """Build only from validated trusted configuration, never raw user content.
 
-    text_only is a future text-inference context, not provider activation. The
-    caller must separately configure/authorize the provider and its guardrails.
+    For text_only, the caller separately configures and authorizes the provider
+    and its guardrails.
     """
     if type(config) is not PersonaConfig:
         raise ValueError("invalid_persona_config")
